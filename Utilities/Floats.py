@@ -18,7 +18,9 @@ from GeneralUtilities.Filepath.instance import get_base_folder
 
 
 file_handler = FilePathHandler(ROOT_DIR,'Floats')
-base_folder = get_base_folder() + 'Raw/ARGO/aoml/'
+gps_base_folder = get_base_folder() + 'Raw/ARGO/aoml/'
+toa_base_folder = 
+
 
 def end_adder(dummy_time_list,dummy_pos_list):
 	adder_number = 6
@@ -40,7 +42,7 @@ class FloatBase(object):
 		self.depth = self.depth_parser(self.floatname)
 		self.stream = self.stream_parser()
 
-	def stream_parser(self):	# the weddell floats recorded no depth information
+	def stream_parser(self):	
 		return Stream([],[],self.clock)
 
 	def obs_dates(self):
@@ -60,22 +62,6 @@ class FloatBase(object):
 		pos_index = self.pos_date.index(self.clock.date)
 		pos = self.pos[pos_index]
 		return pos
-
-	def plot(self,urlat,lllat,urlon,lllon,lon_0=0):
-		m = Basemap.auto_map(urlat,lllat,urlon,lllon,lon_0)
-		lat,lon = list(zip(*[(_.lat.decimal_degree,_.lon.decimal_degree) for _ in self.pos]))
-		if lon_0!=0:
-			lon = np.array(lon)
-			lon[lon<0]= lon[lon<0]+360
-			lon = lon.tolist()
-		m.plot(lon,lat,'k',latlon=True)
-		# lat,lon = zip(*[(_.lat.decimal_degree,_.lon.decimal_degree) for _ in [self.pos[0],self.pos[-1]]])
-		if lon_0!=0:
-			lon = np.array(lon)
-			lon[lon<0]= lon[lon<0]+360
-			lon = lon.tolist()
-		# m.plot((lon[0],lon[-1]),(lat[0],lat[-1]),'y*',latlon=True,markersize=10)
-		return m
 
 class FloatToken(FloatBase):
 	def __init__(self,match,sources,**kwds):
@@ -195,32 +181,6 @@ class DIMESFloat(FloatToken):
 		name = ''.join([i for i in name if i.isdigit()])
 		return int(name)
 
-	def traj_plot(self):
-		plt.subplot(2,1,1)
-		lllon = -125
-		urlon = -20
-		lllat = -70
-		urlat = -40
-		m = self.plot(urlat,lllat,urlon,lllon)
-		m.plot(self.trj_df['Lon'].tolist(),self.trj_df['Lat'].tolist(),latlon=True)
-		plt.subplot(2,1,2)
-
-		dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,pos_dist_list = self.toa.calculate_error_list(self.pos,self.pos_date)
-		soso_misfit_dict = {}
-		for soso_token in np.unique(soso_list):
-			soso_misfit_dict[soso_token]=[]
-
-		for k,date in enumerate(self.pos_date):
-			if date in date_return_list:
-				idxs = np.where([x==date for x in date_return_list])[0]
-				for idx in idxs:
-					soso_misfit_dict[soso_list[idx]].append((k,toa_error_list[idx]))
-			else:
-				continue
-		for soso_token in soso_misfit_dict.keys():
-			x,y = list(zip(*soso_misfit_dict[soso_token]))
-			plt.plot(x,y,label=soso_token)
-		plt.legend()
 
 
 
@@ -273,70 +233,10 @@ class WeddellFloat(FloatToken):
 		date_list,gps_list = end_adder(date_list,gps_list)
 		return GPS(gps_list,date_list)
 
-	def traj_plot(self):
-		lllon = -60
-		urlon = 35
-		lllat = -75
-		urlat = -50
-		self.plot(urlat,lllat,urlon,lllon)
-
-	def uncertainty_ellipse(self,date):
-		date_idx = self.pos_date.index(date)
-		P_ = self.P[date_idx]
-		pos = self.pos[date_idx]
-		C = P_[[0,0,2,2],[0,2,0,2]].reshape([2,2])
-		w,v = np.linalg.eig(C)
-		angle = np.degrees(np.arctan(v[1,np.argmax(w)]/v[0,np.argmax(w)]))
-		A = 2*max(w)*np.sqrt(9.210)/abs(degree_dist*np.cos(np.deg2rad(pos.lat.decimal_degree)))
-		B = 2*min(w)*np.sqrt(9.210)/degree_dist
-		return A,B,angle
-
-	def ellipse_plot(self,sources,P):
-		lat,lon = list(zip(*[(_.lat.decimal_degree,_.lon.decimal_degree) for _ in self.pos]))
-		lllon = min(lon)-2
-		urlon = max(lon)+2
-		lllat = min(lat)-2
-		urlat = max(lat)+2
-
-
-		for k,idx in enumerate(np.where([len(_)>2 for _ in self.toa.obs])[0][::5]):
-			print(str(self.floatname)+'_toa_'+str(k))
-			fig, ax = plt.subplots()
-			m = self.plot(urlat,lllat,urlon,lllon)
-			date = self.toa.date[idx]
-			pos_idx = self.pos_date.index(date)
-			A,B,angle = self.uncertainty_ellipse(date)
-			m.ellipse(lon[pos_idx],lat[pos_idx],A,B,60,m,phi=angle,line=False,ax=ax)
-			m.plot(lon[pos_idx],lat[pos_idx],latlon=True,marker='X',color='lime',markersize=12,zorder=10)
-			m.plot(lon[0],lat[0],latlon=True,marker='^',color='m',markersize=12)
-			m.plot(lon[-1],lat[-1],latlon=True,marker='s',color='m',markersize=12)
-			m.plot(lon[0],lat[0],latlon=True,color='k',markersize=12)
-			self.clock.set_date(date) 
-			sources.set_date(date)
-			# colorlist = ['m','b','g','y']
-			for data in self.toa.return_data()[0]:
-				# color = colorlist.pop()
-				(toa,source) = data
-				print(source.ID)
-				detrend_toa = source.clock.detrend_offset(toa)
-				dist = source.dist_from_toa(detrend_toa)
-				print(source.position)
-				print(dist)
-				source_lat = source.position.lat.decimal_degree
-				source_lon = source.position.lon.decimal_degree
-				m.scatter(source_lon,source_lat,latlon=True,s=20,color='r')
-				coords = m.ellipse(source_lon,source_lat,dist/(np.cos(np.deg2rad(source_lat))*degree_dist),dist/degree_dist,50,m)
-				lons,lats = list(zip(*coords))
-				plt.annotate(source.ID,m(source_lon+0.5,source_lat-0.3))
-				m.plot(lons,lats,color='r',latlon=True)
-			plt.savefig(str(self.floatname)+'_toa_'+str(k))
-			plt.close()
-
 class AllFloats(object):
 	sources = SourceArray()
 	list = []
 	def __init__(self,*args,**kwargs):
-		base_folder = file_handler.store_file('')
 		dir_,float_type,ext_ = self.sources_dict
 		base_matches = find_files(dir_,ext_)
 		for match in base_matches:
@@ -412,61 +312,6 @@ class AllFloats(object):
 			else:
 				print('the dataframe is empty')
 				soso.error_dataframe = pd.DataFrame([])
-
-	def all_gps_error_list(self):
-		kalman_list = []
-		smoother_list = []
-		for label,dummy_list in [('kalman',kalman_list),('smoother',smoother_list)]:
-			for _ in self.list:
-				dummy_1 = [item for sublist in _.gps.dx_error[label] for item in sublist]
-				dummy_2 = [item for sublist in _.gps.dy_error[label] for item in sublist]
-				dummy_list += [np.sqrt(_[0]**2+_[1]**2) for _ in list(zip(dummy_1,dummy_2))]
-		return (kalman_list,smoother_list)
-
-	def all_gps_date_list(self):
-		dummy_list = []
-		for _ in self.list:
-			dummy_list+=_.gps.date
-		return dummy_list
-
-	def all_toa_error_list(self,error_type):
-		dummy_list = []
-		for _ in self.sources.array.items():
-			dummy_list+=_[1].error[error_type]
-		dummy_list = [item for sublist in dummy_list for item in sublist]
-		return dummy_list
-
-	def all_speed_list(self):
-		dummy_list = []
-		for _ in self.list:		
-			dummy_list += (np.array([x.magnitude for x in np.diff(_.pos)])/np.array([x.days for x in np.diff(_.pos_date)])).tolist()
-		return dummy_list
-
-
-	def all_toa_date_list(self):
-		dummy_list = []
-		for _ in self.list:
-			dummy_list+=_.toa.date
-		return dummy_list
-
-	def all_toa_number(self):
-		dummy_list = []
-		for _ in self.list:
-			total_len = (_.gps.date[-7]-_.gps.date[6]).days
-			for dummy_toa in _.toa.obs:
-				dummy_list+=[len(dummy_toa)]
-			nothing_heard = total_len-len(_.toa.obs)
-			dummy_list+=[0]*nothing_heard
-		return dummy_list
-
-	def all_toa_list(self):
-		dummy_list = []
-		for _ in self.list:
-			for dummy_toa in _.toa.obs:
-				dummy_list+=dummy_toa
-		return dummy_list
-
-
 
 class WeddellAllFloats(AllFloats):
 	sources_dict = (base_folder+'Data/',WeddellFloat,'*.itm')
