@@ -127,32 +127,6 @@ class FloatToken(FloatBase):
 		for _ in np.array(date_list)-14536]
 		return date
 
-class OlafFloat(FloatToken):
-	def __init__(self,match,sources,**kwds):
-		super(OlafFloat,self).__init__(match,sources,**kwds)
-
-	def initialize_clock(self):
-		self.clock = Clock(self.floatname,0,self.gps.date[0],self.gps.date[-1],drift=0)
-
-	def depth_parser(self,dummy):	# the Olaf floats recorded no depth information
-		return Depth([],[],self.clock)
-
-	def name_parser(self,match):
-		name = match.split('/')[-1]
-		name.split('.')[0]
-		name = name.split('_')[0]
-		name = ''.join([i for i in name if i.isdigit()])
-		print('the name is ',name)
-		return int(name)
-
-	def gps_parser(self,mat):
-		time = [item for sublist in mat['GPSFILE'][0][0][4] for item in sublist]
-		lat = [item for sublist in mat['GPSFILE'][0][0][0] for item in sublist]
-		lon = [item for sublist in mat['GPSFILE'][0][0][1] for item in sublist]
-		time = [datetime.date(1,1,1)+datetime.timedelta(days=(int(float(x))-365)) for x in time]
-		pos = [KalmanPoint(_[0],_[1]) for _ in list(zip(lat,lon))]
-		return GPS(pos,time,self.clock)
-
 class DIMESFloat(FloatToken):
 	def __init__(self,match,sources,**kwds):
 		super(DIMESFloat,self).__init__(match,sources,**kwds)
@@ -270,29 +244,6 @@ class DIMESFloatBase(DIMESFloat):
 		time,pos = end_adder(time,pos)
 		return GPS(pos,time,gps_interp=False)
 
-class DIMESFloatApex(DIMESFloat):
-	def __init__(self,match,sources,**kwds):
-		self.match = match
-		super(DIMESFloatApex,self).__init__(match,sources,**kwds)
-
-	def initialize_clock(self):
-		self.clock = Clock(self.floatname,0,self.gps.date[0],self.gps.date[-1],final_offset=0)
-
-	def gps_parser(self,ID):
-		dir_ = os.path.join(os.path.dirname(self.match),'GPS')
-		date_file = os.path.join(dir_,'date_'+str(ID)+'.mat')
-		lat_file = os.path.join(dir_,'lat_'+str(ID)+'.mat')
-		lon_file = os.path.join(dir_,'lon_'+str(ID)+'.mat')
-
-		date = scipy.io.loadmat(date_file)['date']
-		date = date[~np.isnan(date)]
-		date = [datetime.datetime(1,1,1)+datetime.timedelta(days=(int(float(x))-365)) for x in date]
-		lat = scipy.io.loadmat(lat_file)['lat']
-		lon = scipy.io.loadmat(lon_file)['lon']
-		pos = [KalmanPoint(_[0],_[1]) for _ in list(zip(lat[0].tolist(),lon[0].tolist()))]
-		date,pos = end_adder(date,pos)
-		return GPS(pos,date,gps_interp=False)
-
 class WeddellFloat(FloatToken):
 	def __init__(self,match,sources,**kwds):
 		super(WeddellFloat,self).__init__(match,sources,**kwds)
@@ -381,86 +332,8 @@ class WeddellFloat(FloatToken):
 			plt.savefig(str(self.floatname)+'_toa_'+str(k))
 			plt.close()
 
-class DeepArgo(FloatBase):
-	def __init__(self,match,sources,interp_depth=True,interp_gps=True,**kwds):
-		from utilities import Depth
-		depth=Depth()
-		self.dict = pickle.load(open( match,'rb'))
-		self.interp_depth = interp_depth
-		self.interp_gps = interp_gps
-		super(DeepArgo,self).__init__(match,sources,**kwds)
-		self.toa = []
-		self.toa.date = [] 
-		for date in set(self.gps.date).intersection(set(self.depth_date)):
-			pos = self.gps[self.gps.date.index(date)]
-			self.depth[self.depth_date.index(date)]=depth.return_z(pos)
-
-	def initialize_clock(self):
-		self.clock = Clock(self.floatname,0,self.gps.date[0],self.gps.date[-1],drift=0)
-
-	def name_parser(self,match):
-		name = match.split('/')[-1]
-		name = name.split('.')[0]
-		print(name)
-		return int(name)
-
-	def gps_parser(self,ID):
-		lat = self.dict['lat'][:][0].tolist()
-		lon = self.dict['lon'][:][0].tolist()
-		days = [_*10 for _ in range(len(lat))]
-		if self.interp_gps:
-			interp_days = range(max(days))
-			interp_lat = np.interp(interp_days,days,lat)
-			interp_lon = np.interp(interp_days,days,lon)
-			days = interp_days
-			lat = interp_lat
-			lon = interp_lon
-			self.dict['pos'] = np.array([val for val in self.dict['pos'][0].tolist()[:-1] for _ in range(10)])
-		time = [datetime.datetime(1986,3,12)+datetime.timedelta(days=(_)) for _ in days]
-		pos = [KalmanPoint(_[0],_[1]) for _  in list(zip(lat,lon))]
-		mask = (self.dict['pos']==1).flatten()
-		pos = (np.array(pos)[mask]).tolist()
-		time = (np.array(time)[mask]).tolist()
-		print(pos)
-		print(time)
-		return GPS(pos,time)
-
-	def depth_parser(self,ID):
-		depth = (self.dict['mpr'][0]).tolist()
-		depth = [gsw.z_from_p(_,-60) for _ in depth]
-
-		days = [_*10 for _ in range(len(depth))]
-		
-
-		if self.interp_depth:
-			interp_days = range(max(days))
-			interp_depth = np.interp(interp_days,days,depth)
-			days = interp_days
-			depth = interp_depth
-
-		time = [datetime.datetime(1986,3,12)+datetime.timedelta(days=(_)) for _ in days]
-		
-		return Depth(depth,time,self.clock)
-
-	def traj_plot(self):
-		plt.figure(figsize=(10,10))
-		lllon = 115
-		urlon = 155
-		lllat = -80
-		urlat = -55
-		m = self.plot(urlat,lllat,urlon,lllon,lon_0=360)
-
-		if self.gps:
-			lat,lon = list(zip(*[(_.lat.decimal_degree,_.lon.decimal_degree) for _ in self.gps]))
-		m.plot(lon,lat,'y*',latlon=True,markersize=10)
-		m.plot(self.dict['lon_g'][:][0].tolist(),self.dict['lat_g'][:][0].tolist(),'g',latlon=True)
-
-
 class AllFloats(object):
 	def __init__(self,type=None,**kwds):
-		# reject_list = [828,4779,4782,4781,989]
-		# global df_ 
-		# df_ = GPS_parse()
 		self.sources = SourceArray()
 		if type=='Weddell':
 			self.sources.set_speed(1.5)
@@ -468,10 +341,7 @@ class AllFloats(object):
 		base_folder = file_handler.store_file('')
 		sources_dict = {
 		'Weddell':[(base_folder+'Data/',WeddellFloat,'*.itm')],
-		# ('../Data/data_olaf/',OlafFloat,'*.itm'),
 		'DIMES':[(base_folder+'DIMES/',DIMESFloatBase,'rf*toa.mat')],
-		# ('../Data/DIMES/',DIMESFloatApex,'apex*toa.mat'),
-		# ('../Data/deep_argo/',DeepArgo,'*.pkl'),
 		}
 		float_sources = sources_dict[type]
 		for dir_,float_type,ext_ in float_sources:
