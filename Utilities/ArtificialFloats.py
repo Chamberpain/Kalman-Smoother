@@ -2,29 +2,14 @@ from __future__ import print_function
 import os
 import datetime
 import numpy as np
-from KalmanSmoother.Utilities.DataLibrary import SOSO_coord,SOSO_drift,float_info
-from plot_utilities.Basemap.eulerian_plot import Basemap
-import LatLon
-from sets import Set
-import scipy
-import copy
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
 import random
-from netCDF4 import Dataset
-import pickle
-import gsw
-import sys
-from compute_utilities.list_utilities import flat_list
-from data_save_utilities.lagrangian.argo.argo_read import ArgoReader
-from compute_utilities.constants import degree_dist
-from data_save_utilities.search_utilities import find_files
-from scipy import stats
+from KalmanSmoother.Utilities.Observations import SourceArray
+from KalmanSmoother.Utilities.Utilities import KalmanPoint
 
 
 class ArtificialFloats():
-	def __init__(self,number,sources,vel_percent,**kwds):
-		self.sources = sources
+	def __init__(self,number,vel_percent,**kwds):
+		self.sources = SourceArray()
 		self.list = []
 		with open (get_kalman_folder()+'code/weddell_vel.pkl','rb') as f:
 			vel_spectrum = pickle.load(f)
@@ -46,11 +31,12 @@ class FloatGen(FloatBase):
 
 		self.vel_percent = vel_percent
 
-		initial_loc = LatLon.LatLon(-64,-23.5)
+		initial_loc = KalmanPoint(-23.5,-64)
 		pos_list = [initial_loc]
 		date_list = [datetime.datetime(1986,3,12)]
 		for _ in range(100):
-			pos_list += [pos_list[-1]+self.return_vel_vector(var_x,var_y)]
+			dx,dy = self.return_vel_vector(var_x,var_y)
+			pos_list += [pos_list[-1].add_displacement(dx,dy)]
 			date_list += [date_list[-1]+datetime.timedelta(days=1)]
 		self.exact_pos = pos_list
 		self.exact_date = date_list
@@ -94,10 +80,10 @@ class FloatGen(FloatBase):
 	def return_vel_vector(self,var_x,var_y):
 		dx = var_x+np.random.normal(var_x)*self.vel_percent
 		dy = var_y+np.random.normal(var_y)*self.vel_percent
-		return LatLon.GeoVector(dx,dy)
+		return (dx,dy)
 
-	@static_method
-	def generate_randomly(floatname,sources,vel_percent,var_x,var_y)
+	@staticmethod
+	def generate_randomly(floatname,sources,vel_percent,var_x,var_y):
 		toa_noise = random.choice(range(51))+1
 		gps_chance = random.choice(range(101))
 		toa_number = random.choice(range(6))
