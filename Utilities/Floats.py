@@ -37,13 +37,8 @@ class FloatBase(object):
 	def __init__(self,match,sources,**kwds):
 		self.floatname = self.name_parser(match)
 		self.gps = self.gps_parser(self.floatname)
-		self.initialize_clock()
+		self.initialize_clock() #gets data from various sources (inital and final + drift and offset) to start the clock
 		self.gps.clock = self.clock
-		self.depth = self.depth_parser(self.floatname)
-		self.stream = self.stream_parser()
-
-	def stream_parser(self):	
-		return Stream([],[],self.clock)
 
 	def obs_dates(self):
 		return np.sort(np.unique(self.toa.date+self.gps.date))
@@ -51,12 +46,6 @@ class FloatBase(object):
 	def percent_obs(self):
 		dates = self.obs_dates()
 		return float(len(dates))/(max(dates)-min(dates)).days
-
-	def return_data(self):
-		toa = self.toa.return_data()
-		if toa:
-			toa = toa[0]
-		return (self.gps.return_data(),toa,self.depth.return_data(),self.stream.return_data(),self.gps.return_interp())
 
 	def return_pos(self):
 		pos_index = self.pos_date.index(self.clock.date)
@@ -73,8 +62,6 @@ class FloatToken(FloatBase):
 			print(self.toa.date[0])
 			print(self.toa.date[-1])
 			print(self.gps.date[-1])
-
-
 
 	def toa_parser(self,sources,mat):
 		toa = mat['TOA'].flatten() 
@@ -137,10 +124,6 @@ class DIMESFloat(FloatToken):
 		self.trj_pos = [KalmanPoint(_[0],_[1]) for _ in list(zip(trj_df['Lat'].tolist(),trj_df['Lon'].tolist()))]
 		self.trj_df = trj_df
 
-	def depth_parser(self,dummy):	# the dimes floats recorded no depth information
-		print('I am parsing depth')
-		return Depth([],[],self.clock)
-
 	def name_parser(self,match):
 		name = match.split('/')[-1]
 		name.split('.')[0]
@@ -174,8 +157,6 @@ class WeddellFloat(FloatToken):
 	def initialize_clock(self):
 		self.clock = Clock(self.floatname,0,self.gps.date[0],self.gps.date[-1],drift=0)
 
-	def depth_parser(self,dummy):	# the weddell floats recorded no depth information
-		return Depth([],[],self.clock)
 
 	def name_parser(self,match):
 		from KalmanSmoother.Utilities.DataLibrary import float_library

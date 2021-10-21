@@ -103,7 +103,7 @@ SOSO_drift = {'W1a':(-0.0038,datetime.datetime(2002,12,10),2100,datetime.datetim
 }
 
 
-#deployed lat, deployed lon, depoloyed date, recovered lat, recovered lon, day, initial float clock offset, final float clock offset
+#deployed lat, deployed lon, depoloyed date, recovered lat, recovered lon, recovered day, initial float clock offset, final float clock offset
 float_info = {
 '741': (-55.001,-105.001,14856,-55.108,-61.911,15585,0,-3), 
 '742':(-54.333,-104.998,14856,-60.576,-88.128,15585,0,-3), 

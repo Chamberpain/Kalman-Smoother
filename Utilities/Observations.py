@@ -53,9 +53,9 @@ class ObsBase(object):
 		self.clock = clock
 		self.date = date
 		self.obs = obs
-		
-		self.error = {'kalman':[],'smoother':[],'innovation':[]}
-		self.interp_error = {'kalman':[],'smoother':[],'innovation':[]}
+
+	def set_observational_uncertainty(self,obs_error):
+		self.uncertainty = obs_error
 
 	def return_data(self):
 		try:
@@ -73,17 +73,6 @@ class ObsBase(object):
 			interp_return = []
 		return interp_return
 
-	def hist_plot(self):
-		smooth_error = self.return_error('smoother')
-		kalman_error = self.return_error('kalman')
-		plt.hist(smooth_error,label = 'Kalman Smoother',alpha=0.2,bins=50)
-		plt.hist(kalman_error,label = 'Kalman Filter',alpha=0.2,bins=50)
-		plt.legend(prop={'size': 10})
-		plt.title('Histogram of '+self.ID+' Error')
-
-	def return_error(self,label):
-		return flat_list(self.error[label])
-
 class GPS(ObsBase):
 	"""this class defines all functions of gps observations"""
 	def __init__(self,obs,date,gps_interp=True,**kwds):
@@ -93,10 +82,6 @@ class GPS(ObsBase):
 		else:
 			self.interp_obs = []
 			self.interp_date = []
-		self.dx_error = {'kalman':[],'smoother':[],'innovation':[]}
-		self.dy_error = {'kalman':[],'smoother':[],'innovation':[]}
-		self.dx_interp_error = {'kalman':[],'smoother':[],'innovation':[]}
-		self.dy_interp_error = {'kalman':[],'smoother':[],'innovation':[]}
 		self.ID = 'GPS'
 
 	def interp_calc(self):
@@ -129,6 +114,14 @@ class TOA(ObsBase):
 		for obs_holder,date_holder in zip(obs,date):
 			assert max([soso_token.clock.final_date for obs_token,soso_token in obs_holder])>date_holder
 		super(TOA,self).__init__(obs,date,clock,**kwds)
+
+	def return_data(self):	#because toa can have multiple values, it is already in a list
+		try:
+			obs_index = self.date.index(self.clock.date)
+			obs_return = self.obs[obs_index]
+		except ValueError:
+			obs_return = []
+		return obs_return
 
 	def calculate_error_list(self,pos_list,date_list):
 		dist_error_list = []
@@ -179,40 +172,6 @@ class SoundSource():
 
 	def slow(self):
 		return 1/self.speed_of_sound
-
-	def calculate_offset_and_sound_speed(self):
-		mlr = LinearRegression()
-		mlr.fit(self.error_dataframe['Days'].to_numpy().reshape(-1,1),self.error_dataframe['Misfit'].to_numpy().reshape(-1,1))
-		self.clock.initial_offset = mlr.intercept_
-		self.clock.drift = mlr.coef_[0][0]
-
-		error_list = []
-		for row in self.error_dataframe.iterrows():
-			self.clock.set_date(row[1].Date)
-			error_list.append(self.toa_from_dist(row[1]['Dist'])-self.clock.detrend_offset(row[1]['TOA']))
-		self.error_dataframe['Error']=error_list
-
-	def plot_error_dataframe(self,variable):
-		fig,ax = plt.subplots() 
-		for dummy_float in self.error_dataframe.Float.unique():
-			dummy_dataframe = self.error_dataframe[self.error_dataframe.Float==dummy_float]
-			dummy_dataframe.set_index(variable).sort_index()['Error'].plot(marker = 'x',ax=ax)
-		plt.title('ID = '+str(self.ID)+' by '+variable)
-		plt.ylabel('Error (s)', fontsize=18)
-
-	def plot_errors(self):
-		plt.figure()
-		smooth_error = [item for sublist in self.error['smoother'] for item in sublist]
-		kalman_error = [item for sublist in self.error['kalman'] for item in sublist]
-		bins=np.histogram(np.hstack((smooth_error,kalman_error)), bins=50)[1]
-		plt.hist(smooth_error,bins,label = 'Kalman Smoother',alpha=0.2)
-		plt.hist(kalman_error,bins,label = 'Kalman Filter',alpha=0.2)
-		plt.gca().set_yscale("log")
-		plt.legend(prop={'size': 10})
-		plt.title('Histogram of '+self.ID+' Error')
-		plt.xlabel('Seconds', fontsize=18)
-		plt.savefig('hist_'+self.ID+'_error')
-		plt.close()
 
 	def return_error(self,label):
 		return flat_list(self.error[label])
