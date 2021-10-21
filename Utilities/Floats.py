@@ -15,11 +15,11 @@ from KalmanSmoother.Utilities.DataLibrary import float_info
 from GeneralUtilities.Compute.list import flat_list
 from scipy import stats
 from GeneralUtilities.Filepath.instance import get_base_folder
-
+from KalmanSmoother.__init__ import ROOT_DIR as project_base
+from GeneralUtilities.Compute.list import TimeList
 
 file_handler = FilePathHandler(ROOT_DIR,'Floats')
-gps_base_folder = get_base_folder() + 'Raw/ARGO/aoml/'
-toa_base_folder = 
+base_folder = get_base_folder() + 'Raw/ARGO/aoml/'
 
 
 def end_adder(dummy_time_list,dummy_pos_list):
@@ -109,14 +109,17 @@ class FloatToken(FloatBase):
 
 	def date_parser(self,date_list):
 		ref_date = datetime.datetime(2008,3,9)
-		date = [ref_date + datetime.timedelta(days=int(_)) \
-		for _ in np.array(date_list)-14536]
+		date = [ref_date + datetime.timedelta(days=int(dummy)) for dummy in np.array(date_list).astype(int)-14536]
+		date = TimeList(date)
+		date.set_ref_date(ref_date)
+		assert min(date)>datetime.datetime(2006,1,1)
+		assert max(date)<datetime.datetime(2015,1,1)
 		return date
 
 class DIMESFloat(FloatToken):
+	type = 'DIMES'
 	def __init__(self,match,sources,**kwds):
 		super(DIMESFloat,self).__init__(match,sources,**kwds)
-		self.type = 'DIMES'
 		self.load_trj_file(match)
 
 	def load_trj_file(self,match):
@@ -134,43 +137,6 @@ class DIMESFloat(FloatToken):
 		self.trj_pos = [KalmanPoint(_[0],_[1]) for _ in list(zip(trj_df['Lat'].tolist(),trj_df['Lon'].tolist()))]
 		self.trj_df = trj_df
 
-		dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,pos_dist_list = self.toa.calculate_error_list(self.trj_pos,self.trj_date)
-
-		toa,soso = list(zip(*flat_list(np.array(self.toa.obs)[[x in date_return_list for x in  self.toa.date]])))
-		toa_error_array = np.array(toa_error_list) 
-		toa_array = np.array(toa)
-		z_threshhold = 2
-		for soso_token in list(set(soso)):
-			mask = [x==soso_token for x in soso]
-			mask = np.array(mask)
-			mask[mask==True] = abs(stats.zscore(toa_error_array[mask]))<z_threshhold
-			mask = mask.tolist()
-			toa_array[mask] = toa_array[mask] - np.nanmean(toa_error_array[mask])
-			toa_error_array[mask] = toa_error_array[mask] - np.nanmean(toa_error_array[mask])
-		mask = abs(toa_error_array)<20
-		toa_error_array = toa_error_array[mask]
-		soso = np.array(soso)[mask].tolist()
-		toa = toa_array[mask].tolist()
-		date_return_list = np.array(date_return_list)[mask].tolist()
-		# soso_list = 
-
-		self.toa.abs_error = toa_error_array.tolist()
-		
-
-		toa_list = []
-		date_list = []
-		for date in np.unique(date_return_list):
-			date_list.append(date)
-			idx = np.where(np.array(date_return_list)==date)[0]
-			dummy_toa = tuple(np.array(toa)[idx].tolist())
-			dummy_soso = tuple(np.array(soso)[idx].tolist())
-			toa_list.append(list(zip(dummy_toa,dummy_soso)))
-		assert len(toa_list)<=len(self.toa.obs)
-		assert len(date_list)<=len(self.toa.date)
-		self.toa.obs = toa_list
-		self.toa.date = date_list
-
-
 	def depth_parser(self,dummy):	# the dimes floats recorded no depth information
 		print('I am parsing depth')
 		return Depth([],[],self.clock)
@@ -180,9 +146,6 @@ class DIMESFloat(FloatToken):
 		name.split('.')[0]
 		name = ''.join([i for i in name if i.isdigit()])
 		return int(name)
-
-
-
 
 class DIMESFloatBase(DIMESFloat):
 	def __init__(self,match,sources,**kwds):
@@ -205,9 +168,9 @@ class DIMESFloatBase(DIMESFloat):
 		return GPS(pos,time,gps_interp=False)
 
 class WeddellFloat(FloatToken):
+	type = 'Weddell'
 	def __init__(self,match,sources,**kwds):
 		super(WeddellFloat,self).__init__(match,sources,**kwds)
-		self.type = 'Weddell'
 	def initialize_clock(self):
 		self.clock = Clock(self.floatname,0,self.gps.date[0],self.gps.date[-1],drift=0)
 
@@ -272,15 +235,21 @@ class AllFloats(object):
 			new_list.append(base)
 		self.list = new_list
 
+
+class WeddellAllFloats(AllFloats):
+	sources_dict = (project_base+'/Data/Data/',WeddellFloat,'*.itm')
+	def __init__(self,*args,**kwargs):
+		super().__init__(*args,**kwargs)
+
 	def assign_soso_drift_errors(self):
 		error_list = []
 		for float_ in self.list:
 			gps_date = \
 			float_.gps.date+\
-			[_ - datetime.timedelta(days=1) for _ in float_.gps.date]+\
-			[_ + datetime.timedelta(days=1) for _ in float_.gps.date]+\
-			[_ + datetime.timedelta(days=2) for _ in float_.gps.date]+\
-			[_ - datetime.timedelta(days=2) for _ in float_.gps.date]
+			[dummy - datetime.timedelta(days=1) for dummy in float_.gps.date]+\
+			[dummy + datetime.timedelta(days=1) for dummy in float_.gps.date]+\
+			[dummy + datetime.timedelta(days=2) for dummy in float_.gps.date]+\
+			[dummy - datetime.timedelta(days=2) for dummy in float_.gps.date]
 
 			gps = float_.gps.obs*5
 			toa = float_.toa.obs*5
@@ -292,37 +261,90 @@ class AllFloats(object):
 				toa_holder = toa[toa_date.index(intersection_dummy)]
 				for toa_token in toa_holder:
 					toa_measured,soso = toa_token
+					soso.clock.set_date(intersection_dummy)
 					toa_measured_detrend = float_.clock.detrend_offset(toa_measured)
+					soso_measured_detrend = soso.clock.detrend_offset(toa_measured_detrend)
 					dist = geopy.distance.GreatCircleDistance(soso.position,loc).km # this is in km
 					days = (intersection_dummy-soso.clock.initial_date).days
-					error_list.append((soso.ID,float_.floatname,dist,toa_measured_detrend,days,intersection_dummy))
-		df = pd.DataFrame(error_list,columns=['SOSO','Float','Dist','TOA','Days','Date'])
+					error_list.append((soso.ID,float_.floatname,dist,toa_measured_detrend,days,intersection_dummy,soso_measured_detrend))
+		df = pd.DataFrame(error_list,columns=['SOSO','Float','Dist','TOA','Days','Date','SOSO Initial Observed'])
+		df = df[df['SOSO Initial Observed']>-50]
+		lr = LinearRegression()
+		speed_of_sound, _, _, _ = np.linalg.lstsq(df['SOSO Initial Observed'].to_numpy().reshape(-1,1),df['Dist'].to_numpy().reshape(-1,1))
+
+		df['SOSO TOA'] = [self.sources.array[soso].toa_from_dist(toa) for soso,toa in zip(df['SOSO'].tolist(),df['Dist'].tolist())]
+		df['Misfit'] = df['SOSO Initial Observed']-df['SOSO TOA']
+
+		self.sources.set_speed(speed_of_sound[0][0])
+
 		for _,soso in self.sources.array.items():
-			if soso.mission=='DIMES':
-				continue
-				print('I am passing because this is a dimes sound source')
-			print(soso)
+			print(soso.ID)
 			print(soso.clock.initial_offset)
 			print(soso.clock.drift)
 			df_holder = df[df.SOSO==soso.ID]
+			if df_holder.empty:
+				continue
+			lr.fit(df_holder['Days'].to_numpy().reshape(-1,1),df_holder['Misfit'].to_numpy().reshape(-1,1))
+			soso.clock.initial_offset += lr.intercept_[0]
+			soso.clock.drift += lr.coef_[0][0]
+			print(soso.clock.initial_offset)
+			print(soso.clock.drift)
+
+			corrected_toa_list = []
+			for date,toa in zip(df_holder['Date'].tolist(),df_holder['TOA'].tolist()):
+				soso.clock.set_date(date)
+				corrected_toa = soso.clock.detrend_offset(toa)
+				print('toa is ',toa)
+				print('corrected toa is',toa)
+				print('offset is ',soso.clock.offset)
+				corrected_toa_list.append(soso.clock.detrend_offset(toa))
+			df_holder['Corrected TOA'] = corrected_toa_list
+			df_holder['Error'] = df_holder['SOSO TOA']-df_holder['Corrected TOA']
+
 			if not df_holder.empty:
 				print('the dataframe is not empty')
 				soso.error_dataframe = df_holder
-				soso.calculate_offset_and_sound_speed()
 			else:
 				print('the dataframe is empty')
 				soso.error_dataframe = pd.DataFrame([])
 
-class WeddellAllFloats(AllFloats):
-	sources_dict = (base_folder+'Data/',WeddellFloat,'*.itm')
-	def __init__(self,*args,**kwargs):
-		self.sources.set_speed(1.5)
-		super().__init__(*args,**kwargs)
-
-
-
 class DIMESAllFloats(AllFloats):
-	sources_dict =	(base_folder+'DIMES/',DIMESFloatBase,'rf*toa.mat')
+	sources_dict =	(project_base+'/Data/DIMES/',DIMESFloatBase,'rf*toa.mat')
 
-
-
+	def assign_soso_drift_errors(self):
+		df_list = []
+		for float_ in self.list:
+			dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list = float_.toa.calculate_error_list(float_.trj_pos,float_.trj_date)
+			df_list.append(pd.DataFrame({'floatname':float_.floatname,'dist_error':dist_error_list,'toa_error':toa_error_list,'dist_list':dist_list,'soso_list':soso_list,'date_return_list':date_return_list,'obs_list':obs_list}))
+		df = pd.concat(df_list)
+#it turns out the speed of sound turns out ot almost exactly be 1.5 km/sec, so no need to change anything
+		speed_of_sound, _, _, _ = np.linalg.lstsq(np.array(df.obs_list.tolist()).reshape(-1,1),np.array(df.dist_list.tolist()).reshape(-1,1))
+		df = df[df.toa_error.abs()<50]
+		for _,soso in self.sources.array.items():
+			print(soso.ID)
+			print(soso.clock.initial_offset)
+			print(soso.clock.drift)
+			df_holder = df[df.soso_list==soso.ID]
+			if df_holder.empty:
+				continue
+			df_holder['Days'] = df_holder.date_return_list-df_holder.date_return_list.min()
+			lr = LinearRegression()
+			lr.fit(np.array([x.days for x in df_holder.Days.tolist()]).reshape(-1,1),df_holder['toa_error'].to_numpy().reshape(-1,1))
+			soso.clock.initial_offset += lr.intercept_[0]
+			soso.clock.drift += lr.coef_[0][0]
+			print(soso.clock.initial_offset)
+			print(soso.clock.drift)
+		for float_ in self.list:
+			print(float_.floatname)
+			obs_list = []
+			df_holder = df[df.floatname==float_.floatname]
+			date_list = [datetime.datetime.combine(x.date(),datetime.datetime.min.time()) for x in df_holder.date_return_list]
+			df_holder['Date']=date_list
+			date_list = sorted(np.unique(date_list))
+			for date in date_list:
+				df_token = df_holder[df_holder['Date']==date]
+				date_idx = float_.toa.date.index(date)
+				obs_token = float_.toa.obs[date_idx]
+				obs_list.append([(toa_token,soso_token) for toa_token,soso_token in obs_token if soso_token.ID in df_token.soso_list.tolist()])
+			float_.toa.obs=obs_list
+			float_.toa.date=date_list

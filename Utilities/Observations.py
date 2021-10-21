@@ -126,6 +126,8 @@ class Stream(ObsBase):
 class TOA(ObsBase):
 	"""this class defines all functions of toa observations"""
 	def __init__(self,obs,date,clock,**kwds):
+		for obs_holder,date_holder in zip(obs,date):
+			assert max([soso_token.clock.final_date for obs_token,soso_token in obs_holder])>date_holder
 		super(TOA,self).__init__(obs,date,clock,**kwds)
 
 	def calculate_error_list(self,pos_list,date_list):
@@ -134,7 +136,7 @@ class TOA(ObsBase):
 		soso_list = []
 		dist_list = []
 		date_return_list = []
-		pos_dist_list = []
+		obs_list = []
 		for k,(date,pos) in enumerate(list(zip(date_list,pos_list))):
 			try:
 				idx = self.date.index(date)
@@ -144,7 +146,7 @@ class TOA(ObsBase):
 					toa_dist = soso.dist_from_toa(obs)
 					pos_dist = geopy.distance.GreatCircleDistance(soso.position,pos).km
 					pos_toa = soso.toa_from_dist(pos_dist)
-					pos_dist_list.append(pos_dist)
+					obs_list.append(obs)
 					toa_error_list.append(obs-pos_toa)
 					dist_list.append(pos_dist)
 					error = toa_dist-pos_dist
@@ -153,7 +155,7 @@ class TOA(ObsBase):
 					date_return_list.append(date)
 			except ValueError:
 				continue
-		return dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,pos_dist_list
+		return dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list
 
 class SoundSource():
 	"""class object that holds a clock an id and a position. Keeps track of the date and the clock offset"""
@@ -180,10 +182,9 @@ class SoundSource():
 
 	def calculate_offset_and_sound_speed(self):
 		mlr = LinearRegression()
-		mlr.fit(self.error_dataframe[['Dist','Days']],self.error_dataframe['TOA'])
+		mlr.fit(self.error_dataframe['Days'].to_numpy().reshape(-1,1),self.error_dataframe['Misfit'].to_numpy().reshape(-1,1))
 		self.clock.initial_offset = mlr.intercept_
-		self.speed_of_sound = 1/mlr.coef_[0]
-		self.clock.drift = mlr.coef_[1]
+		self.clock.drift = mlr.coef_[0][0]
 
 		error_list = []
 		for row in self.error_dataframe.iterrows():
