@@ -9,9 +9,9 @@ from KalmanSmoother.Utilities.Observations import Depth,Stream
 class ObsHolder(object,floatclass):
 	def __init__(self):
 		self.gps_class = floatclass.gps
-		self.depth_class = Depth([],[],[])
+		self.depth_class = Depth([],[],floatclass.clock)
 		self.toa_class = floatclass.toa
-		self.stream_class = Stream([],[],[])
+		self.stream_class = Stream([],[],floatclass.clock)
 
 	def return_J(self,pos):
 		J = []
