@@ -6,12 +6,17 @@ from geopy.distance import GreatCircleDistance
 from KalmanSmoother.Utilities.Observations import Depth,Stream
 
 
-class ObsHolder(object,floatclass):
-	def __init__(self):
+class ObsHolder(object):
+	def __init__(self,floatclass):
 		self.gps_class = floatclass.gps
 		self.depth_class = Depth([],[],floatclass.clock)
 		self.toa_class = floatclass.toa
 		self.stream_class = Stream([],[],floatclass.clock)
+
+	def toa_detrend(self,toa,sound_source):
+		toa = self.gps_class.clock.detrend_offset(toa)
+		toa = sound_source.clock.detrend_offset(toa)
+		return toa
 
 	def return_J(self,pos):
 		J = []
@@ -24,7 +29,7 @@ class ObsHolder(object,floatclass):
 		for (toa_reading,sound_source) in self.toa:
 			print('this is the J toa source position')
 			dy,dx = dx_dy_distance(pos,sound_source.position)
-			dist = GreatCircleDistance(state_pos,sound_source.position).km
+			dist = GreatCircleDistance(pos,sound_source.position).km
 			dT_dx = dx/dist*sound_source.slow()
 			dT_dy = dy/dist*sound_source.slow()
 			J.append([dT_dx,0,dT_dy,0])
@@ -45,25 +50,25 @@ class ObsHolder(object,floatclass):
 		J = np.array(J).reshape([self.get_obs_num(),4])
 		return J
 
-	def return_Z(self)
+	def return_Z(self):
 		Z = []
-		for _ in gps:
+		for _ in self.gps:
 			print('this is Z gps')
-			dy,dx = dx_dy_distance(gps[0],self.float.gps.obs[0])
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],self.gps[0])
 			Z.append(dx)
 			Z.append(dy)
-		for _ in interp:
+		for _ in self.interp:
 			print('this is Z interp')
-			dy,dx = dx_dy_distance(interp[0],self.float.gps.obs[0])
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],self.interp[0])
 			Z.append(dx)
 			Z.append(dy)
-		for (toa_reading,sound_source) in toa:
+		for (toa_reading,sound_source) in self.toa:
 			toa_actual = self.toa_detrend(toa_reading,sound_source)
 			Z.append(toa_actual)
-		if depth:
-			Z.append(depth[0])
-		if stream:
-			Z.append(stream[0])
+		if self.depth:
+			Z.append(self.depth[0])
+		if self.stream:
+			Z.append(self.stream[0])
 		Z = np.array(Z).reshape([self.get_obs_num(),1])
 		return Z
 
@@ -73,13 +78,13 @@ class ObsHolder(object,floatclass):
 			R.append(self.gps_class.uncertainty)
 			R.append(self.gps_class.uncertainty)
 		if self.interp:
-			R.append(self.interp_class.uncertainty)
-			R.append(self.interp_class.uncertainty)
+			R.append(self.gps_class.interp_uncertainty)
+			R.append(self.gps_class.interp_uncertainty)
 		for dummy in self.toa:
 			R.append(self.toa_class.uncertainty)
-		if depth:
+		if self.depth:
 			R.append(self.depth_class.uncertainty)
-		if stream:
+		if self.stream:
 			R.append(self.stream_class.uncertainty)
 		obs_num = self.get_obs_num()
 		return np.diag(R).reshape([obs_num,obs_num])
@@ -89,20 +94,20 @@ class ObsHolder(object,floatclass):
 		h = []
 		if self.gps:
 			print('this is h gps')
-			dy,dx = dx_dy_distance(self.float.gps.obs[0],pos)
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],pos)
 			h.append(dx)
 			h.append(dy)
-		if interp:
+		if self.interp:
 			print('this is h interp')
-			dy,dx = dx_dy_distance(self.float.gps.obs[0],pos)
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],pos)
 			h.append(dx)
 			h.append(dy)
-		for (toa_reading,sound_source) in toa:
+		for (toa_reading,sound_source) in self.toa:
 			dist = GreatCircleDistance(sound_source.position,pos).km
 			h.append(sound_source.toa_from_dist(dist))
-		if depth:
+		if self.depth:
 			h.append(depth[0])
-		if stream:
+		if self.stream:
 			h.append(stream[0])
 		h = np.array(h).reshape([self.get_obs_num(),1])
 		return h
@@ -111,7 +116,7 @@ class ObsHolder(object,floatclass):
 		return Z-h
 
 	def get_obs_num(self):
-		return len(gps)*2+len(toa)+len(depth)+len(stream)+len(interp)*2 #2 for lat lon, one for depth
+		return len(self.gps)*2+len(self.toa)+len(self.depth)+len(self.stream)+len(self.interp)*2 #2 for lat lon, one for depth
 
 	def set_data(self):
 		self.toa = self.toa_class.return_data()
@@ -148,13 +153,13 @@ class FilterBase(object):
 		self.set_date(self.float.gps.date[0])
 
 	def set_date(self,date):
-	""" Method to set and record date in all associated source and float clocks
-		Input: date you wish to set
-		Output: None
-	"""
+		""" Method to set and record date in all associated source and float clocks
+			Input: date you wish to set
+			Output: None
+		"""
 		self.date = date
 		self.sources.set_date(date)
-		self.float.set_date(date)
+		self.float.clock.set_date(date)
 		self.date_list.append(date)
 
 	def increment_date(self):
@@ -164,10 +169,10 @@ class FilterBase(object):
 		self.set_date(self.date-datetime.timedelta(days=1))
 
 	def initialize_velocity(self):
-	""" Method to initialize the velocity of the float. We initialize velocity with our best first guess so that 
-	there isnt a shock to the system when the apriori is not in line with the observations
-		Input: None
-		Output: Initial velocity """
+		""" Method to initialize the velocity of the float. We initialize velocity with our best first guess so that 
+		there isnt a shock to the system when the apriori is not in line with the observations
+			Input: None
+			Output: Initial velocity """
 
 		date_diff = (self.float.gps.date[1]-self.float.gps.date[0]).days	#check how many days between gps observations
 		dy,dx = dx_dy_distance(self.float.gps.obs[1],self.float.gps.obs[0])	#calculate distance between 
@@ -187,20 +192,6 @@ class FilterBase(object):
 	def increment_filter(self):
 		self.X_m.append(self.A.dot(self.X_p[-1])) #create the state forecast
 		self.P_m.append(self.P_increment())	#create the covariance forecast
-		gps,toa,depth,stream,interp = self.float.return_data()
-
-		if (not depth)&(self.depth_flag)&(not gps):
-			depth = [self.depth.return_z(self.pos_from_state(self.X_p[-1]))]
-
-		stream_xm = []
-		if (self.stream_flag)&(not gps):
-			stream = [self.stream.return_z(self.pos_from_state(self.X_p[-1]))]
-		if stream:
-			stream_xm = [self.stream.return_z(self.pos_from_state(self.X_m[-1]))]
-			k = -1 
-			while np.isnan(stream_xm):
-				k -= 1
-				stream_xm = self.stream.return_z(self.pos_from_state(self.X_p[k]))
 
 		h = self.ObsHolder.return_h(self.pos_from_state(self.X_m[-1]))
 		J = self.ObsHolder.return_J(self.pos_from_state(self.X_m[-1]))

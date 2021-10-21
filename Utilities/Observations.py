@@ -65,19 +65,13 @@ class ObsBase(object):
 			obs_return = []
 		return obs_return
 
-	def return_interp(self):
-		try:
-			interp_index = self.interp_date.index(self.clock.date)
-			interp_return = [self.interp_obs[interp_index]]
-		except ValueError:
-			interp_return = []
-		return interp_return
-
 class GPS(ObsBase):
 	"""this class defines all functions of gps observations"""
-	def __init__(self,obs,date,gps_interp=True,**kwds):
+	uncertainty = 0.1
+	def __init__(self,obs,date,gps_interp_uncertainty=240,**kwds):
 		super(GPS,self).__init__(obs,date,[],**kwds) #this is a hack for the clock because we need gps to initialize the clock
-		if gps_interp:
+		if gps_interp_uncertainty:
+			self.interp_uncertainty = gps_interp_uncertainty
 			self.interp_calc()
 		else:
 			self.interp_obs = []
@@ -95,6 +89,14 @@ class GPS(ObsBase):
 		date = [self.date[0] + datetime.timedelta(days = k) for k in interp_days.tolist()]
 		self.interp_obs = pos
 		self.interp_date = date
+
+	def return_interp(self):
+		try:
+			interp_index = self.interp_date.index(self.clock.date)
+			interp_return = [self.interp_obs[interp_index]]
+		except ValueError:
+			interp_return = []
+		return interp_return
 
 class Depth(ObsBase):
 	"""this class defines all functions of depth observations"""

@@ -3,13 +3,17 @@ import os
 import datetime
 import numpy as np
 import random
-from KalmanSmoother.Utilities.Observations import SourceArray
+from KalmanSmoother.Utilities.Observations import SourceArray,Clock,GPS,TOA,Depth,Stream
 from KalmanSmoother.Utilities.Utilities import KalmanPoint
+from KalmanSmoother.Utilities.Floats import FloatBase
+from geopy.distance import GreatCircleDistance
 
 
 class ArtificialFloats():
 	def __init__(self,number,vel_percent,**kwds):
 		self.sources = SourceArray()
+		self.sources.set_offset(0)
+		self.sources.set_drift(0)
 		self.list = []
 		with open (get_kalman_folder()+'code/weddell_vel.pkl','rb') as f:
 			vel_spectrum = pickle.load(f)
@@ -28,10 +32,8 @@ class FloatGen(FloatBase):
 		for item in sources.array:
 			if sources.array[item].mission=='Weddell':
 				weddell_source_list.append(sources.array[item]) 		
-
 		self.vel_percent = vel_percent
-
-		initial_loc = KalmanPoint(-23.5,-64)
+		initial_loc = KalmanPoint(-64,-23.5)
 		pos_list = [initial_loc]
 		date_list = [datetime.datetime(1986,3,12)]
 		for _ in range(100):
@@ -49,7 +51,7 @@ class FloatGen(FloatBase):
 
 		for k,(pos,date) in enumerate(zip(self.exact_pos,self.exact_date)):
 			
-			if random.choice(range(101))<self.gps_chance:
+			if random.choice(range(101))<gps_chance:
 				dx = np.random.normal(scale = self.gps_noise/np.sqrt(2))
 				dy = np.random.normal(scale = self.gps_noise/np.sqrt(2))
 				gps_list.append(pos.add_displacement(dx,dy))
@@ -59,21 +61,22 @@ class FloatGen(FloatBase):
 				dy = np.random.normal(scale = self.gps_noise/np.sqrt(2))
 				gps_list.append(pos.add_displacement(dx,dy))
 				gps_date.append(date)	
-			sources = np.random.choice(weddell_source_list,self.toa_number)
+			sources = np.random.choice(weddell_source_list,toa_number)
 			obs_list = []
 			for source in sources:
-				dist = (source.position-pos).magnitude
+				dist = GreatCircleDistance(source.position,pos).km
 				assert dist<2000
-				obs_list.append(source.toa_from_dist(dist)+np.random.normal(scale = self.toa_noise))
+				obs_list.append(source.toa_from_dist(dist)+np.random.normal(scale = toa_noise))
 				assert source.clock.offset==0
 				assert source.clock.drift==0
 			if list(sources):
-				toa_list.append(zip(obs_list,sources))
+				toa_list.append(list(zip(obs_list,sources)))
 				toa_date.append(date)
 		self.gps = GPS(gps_list,gps_date,gps_interp=False)
 		self.gps.clock = self.clock
 
 		self.toa = TOA(toa_list,toa_date,clock = self.clock)
+		self.toa.set_observational_uncertainty(toa_noise)
 		self.depth = Depth([],[],self.clock)
 		self.stream = Stream([],[],self.clock)
 		
