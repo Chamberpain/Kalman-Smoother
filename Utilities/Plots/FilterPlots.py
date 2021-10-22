@@ -1,15 +1,29 @@
-from KalmanSmoother.Utilities.Filters import LeastSquares,Kalman,Smoother
-from GeneralUtilities.Data.agva.agva_utilities import AVGAStream as Stream
-from GeneralUtilities.Data.depth.depth_utilities import ETopo1Depth as Depth
+from KalmanSmoother.Utilities.Filters import LeastSquares,Kalman,Smoother,ObsHolder
 from KalmanSmoother.Utilities.Observations import SourceArray
-from KalmanSmoother.Utilities.Floats import AllFloats
+from KalmanSmoother.Utilities.Floats import DIMESAllFloats,WeddellAllFloats
 from GeneralUtilities.Filepath.instance import FilePathHandler
+from GeneralUtilities.Plot.Cartopy.eulerian_plot import BaseCartopy
+from GeneralUtilities.Data.depth.depth_utilities import ETopo1Depth
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
+
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 
 file_handler = FilePathHandler(ROOT_DIR,'FilterPlots')
 
+class TrajDictCartopy(BaseCartopy):
+	def __init__(self,lons,lats,*args,pad=1,**kwargs):
+		super().__init__(*args,**kwargs)
+		llcrnrlon=(min(lons)-pad)
+		llcrnrlat=(min(lats)-pad)
+		urcrnrlon=(max(lons)+pad)
+		urcrnrlat=(max(lats)+pad)
+		self.ax.set_extent([llcrnrlon,urcrnrlon,llcrnrlat,urcrnrlat], crs=ccrs.PlateCarree())
+		self.finish_map()
+
+
 def optimal_weddell():
-	process_position_noise = 6
+	process_position_noise = 3
 	process_vel_noise = 1.6
 	interp_noise = 336
 	depth_noise = 160
@@ -20,20 +34,34 @@ def optimal_weddell():
 	max_x_diff = 20	
 	toa_noise = 28
 	
-	depth = Depth()
-	depth.guassian_smooth(sigma=4)
-	stream = Stream()
-	depth.guassian_smooth(sigma=2)
-	depth_flag = True
-	stream_flag = True
-	lin_between_obs=True
-	all_floats = AllFloats(type='Weddell')
+	# depth = Depth()
+	# depth.guassian_smooth(sigma=4)
+	# stream = Stream()
+	# depth.guassian_smooth(sigma=2)
+	# depth_flag = True
+	# stream_flag = True
+	# lin_between_obs=True
+	all_floats = WeddellAllFloats()
 	for idx,dummy in enumerate(all_floats.list):
 		print(idx)
-		smooth =Smoother(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-		dummy.traj_plot()
-		plt.savefig('traj_'+str(dummy.floatname))
+		obs_holder = ObsHolder(dummy)
+		dummy.toa.set_observational_uncertainty(25)
+		dummy.depth.set_observational_uncertainty(1500)
+		dummy.stream.set_observational_uncertainty(100)
+		dummy.gps.interp_uncertainty = 336
+		obs_holder = ObsHolder(dummy)
+		dummy.toa.set_observational_uncertainty(10)
+		smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+	for holder in all_floats.list:
+		print(holder.floatname)
+		lons,lats = zip(*[(x.longitude,x.latitude) for x in holder.pos])
+
+		lon_grid,lat_grid,ax = TrajDictCartopy(lons,lats,pad=1).get_map()
+		ax.scatter(lons,lats,label='Kalman',alpha=0.3)
+		plt.savefig(str(holder.floatname))
 		plt.close()
+
+
 	from scipy import stats		
 	kalman_list = []
 	kalman_error_list = []
@@ -145,38 +173,31 @@ def optimal_weddell():
 
 
 def optimal_dimes():
-	process_position_noise = 5
-	process_vel_noise = 2.4
-	interp_noise = 500
-	depth_noise = 240
-	stream_noise = .024
-	gps_noise = .1
-	max_vel_uncert=20
-	max_vel = 20
-	max_x_diff = 20	
-	
-	depth = Depth()
-	depth.guassian_smooth(sigma=4)
-	stream = Stream()
-	depth.guassian_smooth(sigma=2)
-	depth_flag = True
-	stream_flag = True
-	lin_between_obs=True
-	I = np.identity(4)
-	all_floats = AllFloats(type='DIMES')
+	process_position_noise = 2
+	process_vel_noise = 2
 
-	all_dimes_error = all_floats.all_DIMES_error_list()
-	bins = np.arange(-40,40.5,0.5)
-	plt.hist(all_dimes_error,bins=bins)
-	plt.savefig('all_dimes_toa_error')
-	plt.close()
+	all_floats = DIMESAllFloats()
 	for idx,dummy in enumerate(all_floats.list):
 		print(idx)
-		toa_noise = 1.2*np.std(dummy.toa.abs_error)
-		smooth =Smoother(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-		dummy.traj_plot()
-		plt.savefig('traj_'+str(dummy.floatname))
+		process_position_noise = 3
+		process_vel_noise = 1.6
+		dummy.toa.set_observational_uncertainty(25)
+		dummy.depth.set_observational_uncertainty(1500)
+		dummy.stream.set_observational_uncertainty(100)
+		obs_holder = ObsHolder(dummy)
+		smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+
+	for holder in all_floats.list:
+		print(holder.floatname)
+		lons,lats = zip(*[(x.longitude,x.latitude) for x in holder.pos])
+		trj_lons,trj_lats = zip(*[(x.longitude,x.latitude) for x in holder.trj_pos])
+
+		lon_grid,lat_grid,ax = TrajDictCartopy(lons+trj_lons,lats+trj_lats,pad=1).get_map()
+		ax.scatter(lons,lats,label='Kalman',alpha=0.3,zorder=10)
+		ax.scatter(trj_lons,trj_lats,label='ARTOA',alpha=0.3,zorder=10)
+		plt.savefig(str(holder.floatname))
 		plt.close()
+
 	all_floats.DIMES_speed_hist()
 
 def particle_release():
@@ -317,14 +338,7 @@ def weddell_error_save():
 	max_vel = 20
 	max_x_diff = 20	
 	
-	depth = Depth()
-	depth.guassian_smooth(sigma=4)
-	stream = Stream()
-	depth.guassian_smooth(sigma=2)
-	depth_flag = True
-	stream_flag = True
-	lin_between_obs=True
-	I = np.identity(4)
+
 	all_floats = AllFloats(type='Weddell')
 	if root_folder == '/Users/pchamberlain/Projects/kalman_smoother/':
 		multiplier_list =[0.8,1.0,1.2]

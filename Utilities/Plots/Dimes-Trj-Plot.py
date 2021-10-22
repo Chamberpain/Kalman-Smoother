@@ -44,19 +44,6 @@ bounds = np.linspace(0, 4, 5)
 kalman_norm = mpl.colors.BoundaryNorm(bounds, kalman_cm.N)
 
 
-for holder in dimes_trj_dict.items():
-	name,data = holder
-	trj_lons = data['trj_lons']
-	trj_lats = data['trj_lats']
-	lons = data['lons']
-	lats = data['lats']
-	toa_num = data['toa_number']
-	lon_grid,lat_grid,ax = TrajDictCartopy(dictionary=data,pad=1).get_map()
-	ax.scatter(lons,lats,c = toa_num,label='Kalman',alpha=0.3,cmap=kalman_cm)
-	ax.scatter(trj_lons,trj_lats,c=toa_num[:len(trj_lons)],label='ARTOA',alpha=0.3,cmap=artoa_cm)
-	plt.savefig(name)
-	plt.close()
-
 fig = plt.figure(figsize=(16,12))
 axs = [fig.add_subplot(2,2,x,projection=ccrs.PlateCarree()) for x in [1,2,3,4]]
 for holder in zip(axs,['811','810','815','832'],['a','b','c','d']):
