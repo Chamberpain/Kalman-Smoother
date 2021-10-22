@@ -9,16 +9,16 @@ from KalmanSmoother.Utilities.Observations import Depth,Stream
 class ObsHolder(object):
 	def __init__(self,floatclass):
 		self.gps_class = floatclass.gps
-		self.depth_class = Depth([],[],floatclass.clock)
+		self.depth_class = floatclass.depth
 		self.toa_class = floatclass.toa
-		self.stream_class = Stream([],[],floatclass.clock)
+		self.stream_class = floatclass.stream
 
 	def toa_detrend(self,toa,sound_source):
 		toa = self.gps_class.clock.detrend_offset(toa)
 		toa = sound_source.clock.detrend_offset(toa)
 		return toa
 
-	def return_J(self,pos):
+	def return_J(self,forecast):
 		J = []
 		if self.gps:
 			J.append([1,0,0,0])
@@ -27,38 +27,35 @@ class ObsHolder(object):
 			J.append([1,0,0,0])
 			J.append([0,0,1,0])
 		for (toa_reading,sound_source) in self.toa:
-			print('this is the J toa source position')
-			dy,dx = dx_dy_distance(pos,sound_source.position)
-			dist = GreatCircleDistance(pos,sound_source.position).km
+			dy,dx = dx_dy_distance(sound_source.position,forecast)
+			dist = GreatCircleDistance(forecast,sound_source.position).km
 			dT_dx = dx/dist*sound_source.slow()
 			dT_dy = dy/dist*sound_source.slow()
 			J.append([dT_dx,0,dT_dy,0])
 		if self.depth:
 			k = -1 
-			dz_dx,dz_dy = self.depth_class.return_gradient(pos)
+			dz_dx,dz_dy = self.depth_class.return_gradient(forecast)
 			while any([np.isnan(dz_dx),np.isnan(dz_dy)]):
 				k -= 1
-				dz_dx,dz_dy = self.depth_class.return_gradient(pos)
+				dz_dx,dz_dy = self.depth_class.return_gradient(forecast)
 			J.append([dz_dx,0,dz_dy,0]) #now add depth jacobian
 		if self.stream:
 			k = -1 
-			dz_dx,dz_dy = self.stream_class.return_gradient(pos)
+			dz_dx,dz_dy = self.stream_class.return_gradient(forecast)
 			while any([np.isnan(dz_dx),np.isnan(dz_dy)]):
 				k -= 1
-				dz_dx,dz_dy = self.stream_class.return_gradient(pos)
+				dz_dx,dz_dy = self.stream_class.return_gradient(forecast)
 			J.append([dz_dx,0,dz_dy,0]) #now add stream jacobian
 		J = np.array(J).reshape([self.get_obs_num(),4])
 		return J
 
-	def return_Z(self):
+	def return_Z(self,analysis):
 		Z = []
 		for _ in self.gps:
-			print('this is Z gps')
 			dy,dx = dx_dy_distance(self.gps_class.obs[0],self.gps[0])
 			Z.append(dx)
 			Z.append(dy)
 		for _ in self.interp:
-			print('this is Z interp')
 			dy,dx = dx_dy_distance(self.gps_class.obs[0],self.interp[0])
 			Z.append(dx)
 			Z.append(dy)
@@ -66,9 +63,9 @@ class ObsHolder(object):
 			toa_actual = self.toa_detrend(toa_reading,sound_source)
 			Z.append(toa_actual)
 		if self.depth:
-			Z.append(self.depth[0])
+			Z.append(self.depth_class.return_z(analysis))
 		if self.stream:
-			Z.append(self.stream[0])
+			Z.append(self.stream_class.return_z(analysis))
 		Z = np.array(Z).reshape([self.get_obs_num(),1])
 		return Z
 
@@ -90,25 +87,23 @@ class ObsHolder(object):
 		return np.diag(R).reshape([obs_num,obs_num])
 
 
-	def return_h(self,pos):
+	def return_h(self,forecast):
 		h = []
 		if self.gps:
-			print('this is h gps')
-			dy,dx = dx_dy_distance(self.gps_class.obs[0],pos)
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],forecast)
 			h.append(dx)
 			h.append(dy)
 		if self.interp:
-			print('this is h interp')
-			dy,dx = dx_dy_distance(self.gps_class.obs[0],pos)
+			dy,dx = dx_dy_distance(self.gps_class.obs[0],forecast)
 			h.append(dx)
 			h.append(dy)
 		for (toa_reading,sound_source) in self.toa:
-			dist = GreatCircleDistance(sound_source.position,pos).km
+			dist = GreatCircleDistance(sound_source.position,forecast).km
 			h.append(sound_source.toa_from_dist(dist))
 		if self.depth:
-			h.append(depth[0])
+			h.append(self.depth_class.return_z(forecast))
 		if self.stream:
-			h.append(stream[0])
+			h.append(self.stream_class.return_z(forecast))
 		h = np.array(h).reshape([self.get_obs_num(),1])
 		return h
 
@@ -131,14 +126,8 @@ class FilterBase(object):
 	max_vel_uncert= 30
 	max_vel = 35
 	max_x_diff = 50
-	drift_depth = -1200
-	def __init__(self,float_class,sources,depth,stream,process_position_noise=5,process_vel_noise =1
-		,depth_flag=False,stream_flag=False,lin_between_obs=False):
-		self.depth_flag = depth_flag
-		self.stream_flag = stream_flag
-		self.lin_between_obs = lin_between_obs
-		self.depth = depth
-		self.stream = stream
+	def __init__(self,float_class,sources,obs_holder,process_position_noise=5,process_vel_noise =1):
+		self.obs_holder = obs_holder
 		self.sources = sources
 		self.float=float_class
 		self.process_position_noise = process_position_noise
@@ -160,7 +149,9 @@ class FilterBase(object):
 		self.date = date
 		self.sources.set_date(date)
 		self.float.clock.set_date(date)
+		self.obs_holder.set_data()
 		self.date_list.append(date)
+		print(date)
 
 	def increment_date(self):
 		self.set_date(self.date+datetime.timedelta(days=1))
@@ -193,18 +184,16 @@ class FilterBase(object):
 		self.X_m.append(self.A.dot(self.X_p[-1])) #create the state forecast
 		self.P_m.append(self.P_increment())	#create the covariance forecast
 
-		h = self.ObsHolder.return_h(self.pos_from_state(self.X_m[-1]))
-		J = self.ObsHolder.return_J(self.pos_from_state(self.X_m[-1]))
-		Z = self.ObsHolder.return_Z()
-		R = self.ObsHolder.return_R()
-		Y = self.ObsHolder.return_Y(Z,h) #innovation
-		print('Y = ',Y)
+		h = self.obs_holder.return_h(self.pos_from_state(self.X_m[-1]))
+		J = self.obs_holder.return_J(self.pos_from_state(self.X_p[-1]))
+		Z = self.obs_holder.return_Z(self.pos_from_state(self.X_p[-1]))
+		R = self.obs_holder.return_R()
+		Y = self.obs_holder.return_Y(Z,h) #innovation
 		S = J.dot(self.P_m[-1].dot(J.T))+R 	#innovation covariance
 		K = self.P_m[-1].dot(J.T.dot(np.linalg.inv(S)))	#kalman gain
 		self.X_p.append(self.X_checker(self.X_m[-1]+K.dot(Y))) #create the analysis state
-		self.P_p.append((I-K.dot(J)).dot(self.P_m[-1]))	#create the analysis covariance
-		for dummy in zip(label,Y.tolist()):
-			dummy[0].append(dummy[1])
+		self.P_p.append((self.I-K.dot(J)).dot(self.P_m[-1]))	#create the analysis covariance
+
 		try:
 			assert self.X_p[-1].shape == (4,1) #state matrix must have x,xdot, y,ydot
 			assert self.X_m[-1].shape == (4,1)
@@ -218,7 +207,7 @@ class FilterBase(object):
 			raise
 
 	def P_increment(self):
-		if self.eig_checker(self.P_p[-1][[1,1,3,3],[1,3,1,3]],max_vel_uncert): # if the error covariance is growing too large
+		if self.eig_checker(self.P_p[-1][[1,1,3,3],[1,3,1,3]],self.max_vel_uncert): # if the error covariance is growing too large
 			Q = self.Q	#process noise with velocity noise
 		else:
 			Q = self.Q_position_uncert_only #process noise without velocity noise
@@ -232,14 +221,14 @@ class FilterBase(object):
 	def X_checker(self,X):
 		for idx in [1,3]:
 			dummy = X[idx]
-			if abs(dummy)>max_vel:
-				X[idx] = np.sign(dummy)*max_vel
+			if abs(dummy)>self.max_vel:
+				X[idx] = np.sign(dummy)*self.max_vel
 		for idx in [0,2]:
 			dummy_1 = X[idx]
 			dummy_2 = self.X_m[-1][idx]
 			diff = dummy_1-dummy_2
-			if abs(dummy_1-dummy_2)>max_x_diff:
-				X[idx] = dummy_2 + np.sign(diff)*max_x_diff
+			if abs(dummy_1-dummy_2)>self.max_x_diff:
+				X[idx] = dummy_2 + np.sign(diff)*self.max_x_diff
 		return X
 
 	def pos_from_state(self,state):
@@ -302,8 +291,8 @@ class FilterBase(object):
 
 
 class LeastSquares(FilterBase):
-	def __init__(self,float_class,sources,depth,stream,**kwds):
-		super(LeastSquares,self).__init__(float_class,sources,depth,stream,**kwds)
+	def __init__(self,float_class,sources,obs_holder,**kwds):
+		super(LeastSquares,self).__init__(float_class,sources,obs_holder,**kwds)
 		self.A=np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]) 
 		self.increment()
 # state matrix propogates to future with X(t)=X(t-1), V(t)=V(t-1)
@@ -317,9 +306,9 @@ class LeastSquares(FilterBase):
 		assert len(self.float.ls_pos)==len(self.date_list)
 
 class Kalman(FilterBase):
-	def __init__(self,float_class,sources,depth,stream,**kwds):
-		super(Kalman,self).__init__(float_class,sources,depth,stream,**kwds)
-		self.A=np.array([[1,1,0,0],[0,0.95,0,0],[0,0,1,1],[0,0,0,0.95]]) 
+	def __init__(self,float_class,sources,obs_holder,**kwds):
+		super(Kalman,self).__init__(float_class,sources,obs_holder,**kwds)
+		self.A=np.array([[1,1,0,0],[0,0.90,0,0],[0,0,1,1],[0,0,0,0.90]]) 
 		self.increment()
 # state matrix propogates to future with X(t)=X(t-1)+V(t-1), V(t)=V(t-1)
 	def increment(self):
@@ -328,16 +317,13 @@ class Kalman(FilterBase):
 			assert self.date == self.float.clock.date
 			self.increment_filter()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X_p]
-		if self.lin_between_obs:
-			self.linear_interp_between_obs()
 		assert len(self.float.pos)==len(self.date_list)
 		self.float.pos_date = self.date_list
-		self.error_calc(self.float.pos,'kalman')
 		self.float.kalman_pos = self.float.pos
 
 class Smoother(Kalman):
-	def __init__(self,float_class,sources,depth,stream,**kwds):
-		super(Smoother,self).__init__(float_class,sources,depth,stream,**kwds)
+	def __init__(self,float_class,sources,obs_holder,**kwds):
+		super(Smoother,self).__init__(float_class,sources,obs_holder,**kwds)
 		self.X = []
 		self.P = []
 		self.X.append(self.X_p.pop())
@@ -347,9 +333,6 @@ class Smoother(Kalman):
 			self.decrement_filter()
 			self.decrement_date()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X[::-1]]
-		if self.lin_between_obs:
-			self.linear_interp_between_obs()
-		self.error_calc(self.float.pos,'smoother')
 		self.float.P = self.P
 
 	def decrement_filter(self):

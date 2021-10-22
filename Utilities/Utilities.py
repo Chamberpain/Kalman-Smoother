@@ -24,20 +24,15 @@ class KalmanPoint(Point):
 		assert self.latitude>-75
 
 	def add_displacement(self,dx,dy):
-		print('this is the previous position',self)
-		print('this is dx dispacement',dx)
-		print('this is dy displacement',dy)
 		lat_const = 180 / math.pi
 		lon_const = lat_const / math.cos(self.latitude * math.pi / 180)
 		new_longitude = self.longitude + (dx / r_earth) * lon_const
 		new_latitude = self.latitude + (dy / r_earth) * lat_const
-		print('this is the final position ',self.__class__(new_latitude,new_longitude))
 		return self.__class__(new_latitude,new_longitude)
 
 def dx_dy_distance(point1,point2):
-	print('point 1 is ',point1)
-	print('point 2 is ',point2)
-
+	assert isinstance(point1,KalmanPoint)
+	assert isinstance(point2,KalmanPoint)
 	lat1 = point1.latitude
 	lon1 = point1.longitude
 
@@ -49,7 +44,4 @@ def dx_dy_distance(point1,point2):
 	dx1 = np.sign(lon2-lon1)*GreatCircleDistance(KalmanPoint(lat1,lon1),KalmanPoint(lat1,lon2)).km
 	dx2 = np.sign(lon2-lon1)*GreatCircleDistance(KalmanPoint(lat2,lon1),KalmanPoint(lat2,lon2)).km
 	dx = (dx1+dx2)/2
-	print ('dy is ',dy)
-	print('dx is ',dx)
-
 	return (dy,dx)
