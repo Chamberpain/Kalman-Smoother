@@ -256,38 +256,18 @@ class FilterBase(object):
 				vel.append((_[1],_[3]))
 		return (pos,vel)
 
-
-	def obs_date_diff_list(self,date_list):
-		dates = np.sort(self.float.toa.date+self.float.gps.date)
-		date_diff_list = []
-		for date in date_list:
-			dates_holder = dates[dates<date]
-			if list(dates_holder):
-				diff = (date-max(dates_holder)).days
-				date_diff_list.append(diff)
-			else:
-				date_diff_list.append(0)
-		return date_diff_list
-
-	def linear_interp_between_obs(self):
-		unique_date_list = np.sort(np.unique(self.date_list))
-		date_diff_list = self.obs_date_diff_list(unique_date_list)
-		idxs = np.where(np.array(date_diff_list)==14)[0]
-		obs_dates = np.array(np.sort(self.float.toa.date+self.float.gps.date))
-		unique_date_list = np.array(unique_date_list)
-		for idx in idxs:
-			date = unique_date_list[idx]
-			min_date = max(obs_dates[obs_dates<date])-datetime.timedelta(days=4)
-			max_date = min(obs_dates[obs_dates>date])+datetime.timedelta(days=4)
-			min_idx = self.date_list.index(min_date)
-			max_idx = self.date_list.index(max_date)
-
-			min_pos = self.float.pos[min_idx]
-			max_pos = self.float.pos[max_idx]
-
-			time_delta = (max_date-min_date).days
-			pos_insert = [min_pos + (_+1)*(max_pos-min_pos)/(time_delta+2) for _ in range(time_delta)]
-			self.float.pos[min_idx:max_idx] = pos_insert
+	def error_calc(self,label):
+ 		self.set_date(self.float.gps.date[0])
+ 		while self.date<=self.float.gps.date[-1]:
+ 			assert self.date == self.float.clock.date
+ 			pos = self.float.return_pos()
+ 			for toa,soso in self.obs_holder.toa:
+ 				dist = GreatCircleDistance(pos,soso.position).km
+ 				toa_calc = soso.toa_from_dist(dist)
+ 				toa = self.toa_detrend(toa,soso)
+ 				misfit = toa_calc - toa
+ 				soso.assign_error(label,misfit)
+ 			self.increment_date()
 
 
 class LeastSquares(FilterBase):
@@ -302,8 +282,9 @@ class LeastSquares(FilterBase):
 			self.increment_date()
 			assert self.date == self.float.clock.date
 			self.increment_filter()
-		self.float.ls_pos = [self.pos_from_state(_) for _ in self.X_p]
+		self.float.pos = [self.pos_from_state(_) for _ in self.X_p]
 		assert len(self.float.ls_pos)==len(self.date_list)
+		self.error_calc('ls')
 
 class Kalman(FilterBase):
 	def __init__(self,float_class,sources,obs_holder,**kwds):
@@ -320,6 +301,7 @@ class Kalman(FilterBase):
 		assert len(self.float.pos)==len(self.date_list)
 		self.float.pos_date = self.date_list
 		self.float.kalman_pos = self.float.pos
+		self.error_calc('kalman')
 
 class Smoother(Kalman):
 	def __init__(self,float_class,sources,obs_holder,**kwds):
@@ -334,6 +316,7 @@ class Smoother(Kalman):
 			self.decrement_date()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X[::-1]]
 		self.float.P = self.P
+		self.error_calc('smoother')
 
 	def decrement_filter(self):
 		K = self.P_p[-1].dot(self.A.T.dot(np.linalg.inv(self.P_m[-1])))

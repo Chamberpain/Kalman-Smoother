@@ -162,7 +162,7 @@ class SoundSource():
 		recorded_drift,date_start,offset,extraction_date = SOSO_drift[ID]
 		self.clock = Clock(ID,offset,date_start,extraction_date,drift=recorded_drift)
 		self.speed_of_sound = 1.467 # km/s
-		self.error = {'kalman':[],'smoother':[],'innovation':[]}
+		self.error = {'kalman':[],'smoother':[],'ls':[]}
 
 	def toa_from_dist(self,dist):
 		toa = abs(dist)*1/self.speed_of_sound
@@ -175,8 +175,11 @@ class SoundSource():
 	def slow(self):
 		return 1/self.speed_of_sound
 
+	def assign_error(self,label,error):
+		self.error[label].append(error)
+
 	def return_error(self,label):
-		return flat_list(self.error[label])
+		return self.error[label]
 
 class SourceArray():
 	""" Source array is a class that holds many sound sources. Can set the date of all sources, 

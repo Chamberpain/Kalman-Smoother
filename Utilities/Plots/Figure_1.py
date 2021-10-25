@@ -8,18 +8,20 @@ from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
-def pie_plot_list(list_):
-	calc_array = np.array(list_)
-	calc_array[calc_array>4]=4
-	list_ = calc_array.tolist()
-	return_list = []
-	for num in np.unique(list_):
-		np.where(num==np.array(list_))
-		frac = len(np.where(num==np.array(list_))[0])/float(len(list_))
-		return_list.append((num,frac))
-	return return_list
+
 
 def sound_source_number_plot():
+	def pie_plot_list(list_):
+		calc_array = np.array(list_)
+		calc_array[calc_array>4]=4
+		list_ = calc_array.tolist()
+		return_list = []
+		for num in np.unique(list_):
+			np.where(num==np.array(list_))
+			frac = len(np.where(num==np.array(list_))[0])/float(len(list_))
+			return_list.append((num,frac))
+		return return_list
+
 	all_weddell = AllFloats('Weddell')
 	all_dimes = AllFloats('DIMES')
 	label = ['No Source','1 Source','2 Sources','3 Sources','4+ Sources']
@@ -73,6 +75,6 @@ def sound_source_number_plot():
           prop={'size': 16})
 	plt.annotate('d', xy = (0.1,0.9),xycoords='axes fraction',zorder=10,size=16,bbox=dict(boxstyle="round", fc="0.8"),)
 
-	plt.savefig(file_handler.out_file('source_stats'))
+	plt.savefig(file_handler.out_file('Figure_1'))
 	plt.close()
 	

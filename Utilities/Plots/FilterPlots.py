@@ -7,9 +7,7 @@ from GeneralUtilities.Data.depth.depth_utilities import ETopo1Depth
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 
-from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 
-file_handler = FilePathHandler(ROOT_DIR,'FilterPlots')
 
 class TrajDictCartopy(BaseCartopy):
 	def __init__(self,lons,lats,*args,pad=1,**kwargs):
@@ -42,7 +40,7 @@ def optimal_weddell():
 	# stream_flag = True
 	# lin_between_obs=True
 	all_floats = WeddellAllFloats()
-	for idx,dummy in enumerate(all_floats.list):
+	for idx,dummy in enumerate(all_floats.list[:5]):
 		print(idx)
 		obs_holder = ObsHolder(dummy)
 		dummy.toa.set_observational_uncertainty(25)
@@ -263,125 +261,4 @@ def particle_release():
 				continue
 			all_floats.sources.reset_error()
 
-def dimes_error_save():
-	error_folder = root_folder+'output/error/'
-	process_position_noise_base = 5
-	process_vel_noise_base = 2
-	interp_noise_base = 500
-	depth_noise_base = 200
-	stream_noise_base = .02
-	gps_noise = .1
-	max_vel_uncert=20
-	max_vel = 20
-	max_x_diff = 20	
-	
-	depth = Depth()
-	depth.guassian_smooth(sigma=4)
-	stream = Stream()
-	depth.guassian_smooth(sigma=2)
-	depth_flag = True
-	stream_flag = True
-	lin_between_obs=True
-	I = np.identity(4)
-	interp_noise = 0
-	all_floats = AllFloats(type='DIMES')
-	if root_folder == '/Users/pchamberlain/Projects/kalman_smoother/':
-		multiplier_list =[0.8,1.0,1.2]
-	else:
-		multiplier_list = [1.2,0.8,1.0]
-	def calculate(toa_noise_multiplier,process_position_noise,process_vel_noise,depth_noise,stream_noise,all_floats,depth,stream,Smoother):
-		for idx,dummy in enumerate(all_floats.list):
-			print(idx)
-			toa_noise = np.std(dummy.toa.abs_error)*toa_noise_multiplier
-			global toa_noise
-			smooth =Smoother(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-		misfit = all_floats.sources.return_misfit()/toa_noise
-		all_floats.sources.reset_error()
-		filename_token = error_folder+make_filename(toa_noise_multiplier,process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)
-		np.save(filename_token,misfit)
-
-	for process_position_noise_multiplier in multiplier_list:
-		process_position_noise = process_position_noise_multiplier*process_position_noise_base
-		global process_position_noise
-		for process_vel_noise_multiplier in multiplier_list:
-			process_vel_noise = process_vel_noise_multiplier*process_vel_noise_base
-			global process_vel_noise
-			for depth_noise_multiplier in multiplier_list:
-				depth_noise = depth_noise_multiplier*depth_noise_base
-				global depth_noise
-				for stream_noise_multiplier in multiplier_list:
-					stream_noise = stream_noise_multiplier*stream_noise_base
-					global stream_noise
-					for toa_noise_multiplier in multiplier_list:
-						filename_token = error_folder+make_filename(toa_noise_multiplier,process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)+'.npy'
-						try:
-							np.load(filename_token)
-						except IOError:
-							np.save(filename_token,0)
-							name_string = 'toa noise %d, process position noise %d, process vel noise %d, interp noise %d, depth noise %d, stream noise %d'%(toa_noise_multiplier,
-								process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)
-							print(name_string+' was not found, calculating')
-							calculate(toa_noise_multiplier,process_position_noise,process_vel_noise,depth_noise,stream_noise,all_floats,depth,stream,Smoother)
-
-
-def weddell_error_save():
-	error_folder = root_folder+'output/weddell_error/'
-	process_position_noise_base = 5
-	process_vel_noise_base = 2
-	interp_noise_base = 280
-	depth_noise_base = 200
-	stream_noise_base = .02
-	toa_noise_base = 35
-
-	gps_noise = .1
-	max_vel_uncert=20
-	max_vel = 20
-	max_x_diff = 20	
-	
-
-	all_floats = AllFloats(type='Weddell')
-	if root_folder == '/Users/pchamberlain/Projects/kalman_smoother/':
-		multiplier_list =[0.8,1.0,1.2]
-	else:
-		multiplier_list = [1.2,0.8,1.0]
-	def calculate(toa_noise_multiplier,process_position_noise,process_vel_noise,depth_noise,stream_noise,interp_noise,all_floats,depth,stream,Smoother):
-		for idx,dummy in enumerate(all_floats.list):
-			print(idx)
-			smooth =Smoother(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-		misfit = all_floats.sources.return_misfit()/toa_noise
-		all_floats.sources.reset_error()
-		filename_token = error_folder+make_filename(toa_noise_multiplier,process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)
-		np.save(filename_token,misfit)
-
-	for process_position_noise_multiplier in multiplier_list[::-1]:
-		process_position_noise = process_position_noise_multiplier*process_position_noise_base
-		global process_position_noise
-		for process_vel_noise_multiplier in multiplier_list[::-1]:
-			process_vel_noise = process_vel_noise_multiplier*process_vel_noise_base
-			global process_vel_noise
-			for depth_noise_multiplier in multiplier_list[::-1]:
-				depth_noise = depth_noise_multiplier*depth_noise_base
-				global depth_noise
-				for stream_noise_multiplier in multiplier_list[::-1]:
-					stream_noise = stream_noise_multiplier*stream_noise_base
-					global stream_noise
-					for toa_noise_multiplier in multiplier_list[::-1]:
-						toa_noise = toa_noise_multiplier*toa_noise_base
-						global toa_noise
-						global toa_noise_multiplier
-						for interp_noise_multiplier in multiplier_list[::-1]:
-							interp_noise = interp_noise_multiplier*interp_noise_base
-							global interp_noise
-
-
-
-							filename_token = error_folder+make_filename(toa_noise_multiplier,process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)+'.npy'
-							try:
-								np.load(filename_token)
-							except IOError:
-								np.save(filename_token,0)
-								name_string = 'toa noise %d, process position noise %d, process vel noise %d, interp noise %d, depth noise %d, stream noise %d'%(toa_noise_multiplier,
-									process_position_noise,process_vel_noise,interp_noise,depth_noise,stream_noise)
-								print(name_string+' was not found, calculating')
-								calculate(toa_noise,process_position_noise,process_vel_noise,depth_noise,stream_noise,interp_noise,all_floats,depth,stream,Smoother)
 
