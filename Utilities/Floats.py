@@ -5,8 +5,6 @@ from KalmanSmoother.Utilities.Observations import Clock,GPS,Depth,Stream,TOA,Sou
 from KalmanSmoother.Utilities.Utilities import KalmanPoint
 import pandas as pd
 import geopy
-from GeneralUtilities.Data.agva.agva_utilities import AVGAStream as Stream
-from GeneralUtilities.Data.depth.depth_utilities import ETopo1Depth as Depth
 from GeneralUtilities.Filepath.search import find_files
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 from GeneralUtilities.Filepath.instance import FilePathHandler
@@ -21,6 +19,7 @@ from KalmanSmoother.__init__ import ROOT_DIR as project_base
 from GeneralUtilities.Compute.list import TimeList
 from GeneralUtilities.Data.depth.depth_utilities import ETopo1Depth
 from GeneralUtilities.Data.agva.agva_utilities import AVGAStream
+import pickle
 import random
 
 
@@ -241,6 +240,10 @@ class AllFloats(object):
 		self.combine_classes()
 		self.assign_soso_drift_errors()
 
+	@classmethod
+	def reset_floats(cls):
+		cls.list = []
+
 	def combine_classes(self):
 		new_list = []
 		name_list = np.array([_.floatname for _ in self.list])
@@ -379,24 +382,30 @@ class DIMESAllFloats(AllFloats):
 
 
 class ArtificialFloats():
-	def __init__(self,number,vel_percent,**kwds):
-		self.sources = SourceArray()
-		self.sources.set_offset(0)
-		self.sources.set_drift(0)
+	sources = SourceArray()
+	sources.set_offset(0)
+	sources.set_drift(0)
+	sources.set_speed(1.5)
+	def __init__(self,**kwds):
+
 		self.list = []
-		with open (get_kalman_folder()+'code/weddell_vel.pkl','rb') as f:
+		with open (project_base+'/Data/weddell_vel.pkl','rb') as f:
 			vel_spectrum = pickle.load(f)
-		self.var_x = np.var(vel_spectrum['dx'])
-		self.var_y = np.var(vel_spectrum['dy'])
-		for dummy in range(number):
-			print(dummy)
-			self.list.append(FloatGen.generate_randomly(dummy,self.sources,vel_percent,self.var_x,self.var_y))
+		self.var_x = np.var(vel_spectrum['dx'])*0.3
+		self.var_y = np.var(vel_spectrum['dy'])*0.3
+
+	def random(self,vel_percent):
+		return FloatGen.generate_randomly('particle',self.sources,vel_percent,self.var_x,self.var_y)
 
 class FloatGen(FloatBase):
 	type = 'Numerical'
 	gps_noise = 0.1
 	def __init__(self,floatname,sources,vel_percent,var_x,var_y,toa_noise,gps_chance,toa_number):
 		self.floatname = floatname
+		self.toa_noise = toa_noise
+		self.toa_number = toa_number
+		self.sources = sources
+		self.sources.set_location(KalmanPoint(-64,-23.5))
 		weddell_source_list = []
 		for item in sources.array:
 			if sources.array[item].mission=='Weddell':

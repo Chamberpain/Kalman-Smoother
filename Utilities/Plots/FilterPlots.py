@@ -21,16 +21,13 @@ class TrajDictCartopy(BaseCartopy):
 
 
 def optimal_weddell():
-	process_position_noise = 3
-	process_vel_noise = 1.6
-	interp_noise = 336
-	depth_noise = 160
-	stream_noise = .024
+	process_position_noise = 9.0
+	process_vel_noise = 1.5
+	interp_noise = 360.0
+	depth_noise = 3000
+	stream_noise = 65.0
 	gps_noise = .1
-	max_vel_uncert=20
-	max_vel = 20
-	max_x_diff = 20	
-	toa_noise = 28
+	toa_noise = 62.5
 	
 	# depth = Depth()
 	# depth.guassian_smooth(sigma=4)
@@ -40,15 +37,14 @@ def optimal_weddell():
 	# stream_flag = True
 	# lin_between_obs=True
 	all_floats = WeddellAllFloats()
-	for idx,dummy in enumerate(all_floats.list[:5]):
+	for idx,dummy in enumerate(all_floats.list):
 		print(idx)
 		obs_holder = ObsHolder(dummy)
-		dummy.toa.set_observational_uncertainty(25)
-		dummy.depth.set_observational_uncertainty(1500)
-		dummy.stream.set_observational_uncertainty(100)
-		dummy.gps.interp_uncertainty = 336
+		dummy.toa.set_observational_uncertainty(toa_noise)
+		dummy.depth.set_observational_uncertainty(depth_noise)
+		dummy.stream.set_observational_uncertainty(stream_noise)
+		dummy.gps.interp_uncertainty = interp_noise
 		obs_holder = ObsHolder(dummy)
-		dummy.toa.set_observational_uncertainty(10)
 		smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
 	for holder in all_floats.list:
 		print(holder.floatname)
@@ -171,17 +167,19 @@ def optimal_weddell():
 
 
 def optimal_dimes():
-	process_position_noise = 2
-	process_vel_noise = 2
-
+	process_position_noise = 9.0
+	process_vel_noise = 3.0
+	depth_noise = 3750
+	stream_noise = 97.5
+	gps_noise = .1
+	toa_noise = 62.5
 	all_floats = DIMESAllFloats()
+
 	for idx,dummy in enumerate(all_floats.list):
 		print(idx)
-		process_position_noise = 3
-		process_vel_noise = 1.6
-		dummy.toa.set_observational_uncertainty(25)
-		dummy.depth.set_observational_uncertainty(1500)
-		dummy.stream.set_observational_uncertainty(100)
+		dummy.toa.set_observational_uncertainty(toa_noise)
+		dummy.depth.set_observational_uncertainty(depth_noise)
+		dummy.stream.set_observational_uncertainty(stream_noise)
 		obs_holder = ObsHolder(dummy)
 		smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
 
@@ -193,72 +191,10 @@ def optimal_dimes():
 		lon_grid,lat_grid,ax = TrajDictCartopy(lons+trj_lons,lats+trj_lats,pad=1).get_map()
 		ax.scatter(lons,lats,label='Kalman',alpha=0.3,zorder=10)
 		ax.scatter(trj_lons,trj_lats,label='ARTOA',alpha=0.3,zorder=10)
+		plt.legend()
 		plt.savefig(str(holder.floatname))
 		plt.close()
 
 	all_floats.DIMES_speed_hist()
-
-def particle_release():
-	def make_filename():
-		error_folder = root_folder+'output/particle/'
-		unique_filename = str(uuid.uuid4())
-		return (error_folder+unique_filename)
-	import uuid
-	from kalman_smoother.code.acoustic_read import ArtificialFloats
-	depth = Depth()
-	depth.guassian_smooth(sigma=2)
-	stream = Stream()
-	depth_flag = False
-	stream_flag = False
-	lin_between_obs=False
-
-	pos_list = []
-	label_list = []
-	artoa_error_list = []
-	smoother_error_list = []
-	sources = SourceArray()
-	sources.set_speed(1.5)
-	sources.set_drift(0)
-	sources.set_offset(0)
-	initial_loc = LatLon.LatLon(-64,-23.5)
-	sources.set_location(initial_loc)
-	gps_noise = .1
-	max_vel_uncert=60
-	max_vel = 30
-	max_x_diff = 35
-
-	for percent in [0.1,0.3,0.7]:
-		all_floats = ArtificialFloats(9970,sources,percent)
-		for idx,dummy in enumerate(all_floats.list):
-			try:
-				all_floats.sources.set_drift(0)
-				all_floats.sources.set_offset(0)
-
-				process_noise = (all_floats.var_x)*percent
-				process_position_noise = process_noise
-				process_vel_noise = process_noise
-				interp_noise = 300
-				all_floats.sources.set_speed(1.5)
-				I = np.identity(4)
-				max_vel_uncert= 30
-				max_vel = 35
-				max_x_diff = 50
-				toa_noise = dummy.toa_noise
-
-				ls = LeastSquares(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-				smooth =Smoother(dummy,all_floats.sources,depth,stream,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-
-				gps_number= len(dummy.gps.obs)
-				smoother_error = (np.mean([_.magnitude for _ in np.array(dummy.pos[:-1])-np.array(dummy.exact_pos)]))
-				kalman_error = (np.mean([_.magnitude for _ in np.array(dummy.kalman_pos[:-1])-np.array(dummy.exact_pos)]))
-				ls_error = (np.mean([_.magnitude for _ in np.array(dummy.ls_pos[:-1])-np.array(dummy.exact_pos)]))
-				toa_error = (dummy.toa_noise)
-				toa_number = (dummy.toa_number)
-				percent_list = (percent)
-				filename= make_filename()
-				np.save(filename,[gps_number,smoother_error,kalman_error,ls_error,toa_error,toa_number,percent_list])
-			except:
-				continue
-			all_floats.sources.reset_error()
 
 

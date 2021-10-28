@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import geopy
 from GeneralUtilities.Compute.list import flat_list
-
+import random
 
 
 class Clock():
@@ -204,20 +204,23 @@ increment the date of all sources, or decrement the date of all sources"""
 			if _[1].error['smoother']: 
 				_[1].plot_errors()
 
-	def return_error(self):
+	def return_error(self,label):
 		token_list = []
 		for _ in self.array.items():
-			token_list += _[1].return_error('smoother') 
+			token_list += _[1].return_error(label) 
 		return token_list
 
 	def reset_error(self):
 		for _ in self.array.items():
 			_[1].error['smoother'] = []
 			_[1].error['kalman'] = [] 
+			_[1].error['ls'] = [] 
 
 	def return_misfit(self):
-		error = self.return_error()
-		return np.linalg.norm(error)
+		ls_error = self.return_error('ls')
+		kalman_error = self.return_error('kalman')
+		smoother_error = self.return_error('smoother')
+		return [np.linalg.norm(ls_error),np.linalg.norm(kalman_error),np.linalg.norm(smoother_error)]
 
 	def set_speed(self,speed):
 		for _ in self.array.items():
@@ -234,6 +237,6 @@ increment the date of all sources, or decrement the date of all sources"""
 
 	def set_location(self,initial_loc):
 		for _ in self.array.items():
-			dy = random.random()*random.choice([-1,1])*200
-			dx = random.random()*random.choice([-1,1])*200
+			dy = random.random()*random.choice([-1,1])*500
+			dx = random.random()*random.choice([-1,1])*500
 			_[1].position = initial_loc.add_displacement(dx,dy)

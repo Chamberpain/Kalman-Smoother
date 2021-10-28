@@ -14,11 +14,12 @@ class SmootherPlot(Smoother):
 			for dummy in zip(label,Y.tolist()):
 				dummy[0].append(dummy[1])
 			self.increment_date()
+
+
 	def X_m_minus_X_p_diagnostic(self):
 		date_list,innovation = zip(*self.variable_check['x_m-x_p'])
 		date_diff_list = self.obs_date_diff_list(date_list)
 		innovation = np.array([np.sqrt(_[0]**2+_[2]**2) for _ in innovation]).flatten()
-
 		plt.scatter(range(len(innovation)),innovation,s=0.3,c=np.array(date_diff_list),cmap=plt.cm.get_cmap("winter"))
 		plt.colorbar(label='days since position')
 		plt.xlabel('time step')

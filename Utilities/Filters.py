@@ -151,7 +151,6 @@ class FilterBase(object):
 		self.float.clock.set_date(date)
 		self.obs_holder.set_data()
 		self.date_list.append(date)
-		print(date)
 
 	def increment_date(self):
 		self.set_date(self.date+datetime.timedelta(days=1))
@@ -283,7 +282,8 @@ class LeastSquares(FilterBase):
 			assert self.date == self.float.clock.date
 			self.increment_filter()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X_p]
-		assert len(self.float.ls_pos)==len(self.date_list)
+		assert len(self.float.pos)==len(self.date_list)
+		self.float.pos_date = self.date_list
 		self.error_calc('ls')
 
 class Kalman(FilterBase):

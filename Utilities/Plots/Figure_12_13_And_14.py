@@ -3,11 +3,9 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 from Projects.KalmanSmoother.__init__ import ROOT_DIR
-base_dir = ROOT_DIR+'/Data/output/'
 from GeneralUtilities.Filepath.instance import FilePathHandler
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR as ROOT_DIR_PLOT
-file_handler = FilePathHandler(ROOT_DIR_PLOT,'error_plots')
-
+file_handler_dimes = FilePathHandler(ROOT_DIR,'Tuning/Dimes')
 
 class SeabornFig2Grid():
 
@@ -155,13 +153,3 @@ ax.fig.set_size_inches(12,12)
 plt.tight_layout()
 plt.savefig(file_handler.out_file('toa_percent_error'))
 plt.close()
-
-
-
-# fig = plt.figure()
-# gs = gridspec.GridSpec(3, 1)
-# mg0 = SeabornFig2Grid(g0, fig, gs[0])
-# mg1 = SeabornFig2Grid(g1, fig, gs[1])
-# mg2 = SeabornFig2Grid(g2, fig, gs[2])
-# gs.tight_layout(fig)
-# plt.show()
