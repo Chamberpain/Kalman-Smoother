@@ -235,7 +235,7 @@ class AllFloats(object):
 		base_matches = find_files(dir_,ext_)
 		for match in base_matches:
 			print(match)
-			float_ = float_type(match,self.sources,interp_depth=True)
+			float_ = float_type(match,self.sources)
 			self.list.append(float_)
 		self.combine_classes()
 		self.assign_soso_drift_errors()
@@ -450,7 +450,7 @@ class FloatGen(FloatBase):
 			if list(sources):
 				toa_list.append(list(zip(obs_list,sources)))
 				toa_date.append(date)
-		self.gps = GPS(gps_list,gps_date,gps_interp=False)
+		self.gps = GPS(gps_list,gps_date,gps_interp_uncertainty=False)
 		self.gps.clock = self.clock
 
 		self.toa = TOA(toa_list,toa_date,clock = self.clock)

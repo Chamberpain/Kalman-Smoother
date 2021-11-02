@@ -35,7 +35,6 @@ def dx_dy_distance(point1,point2):
 	assert isinstance(point2,KalmanPoint)
 	lat1 = point1.latitude
 	lon1 = point1.longitude
-
 	lat2 = point2.latitude
 	lon2 = point2.longitude
 
@@ -45,3 +44,8 @@ def dx_dy_distance(point1,point2):
 	dx2 = np.sign(lon2-lon1)*GreatCircleDistance(KalmanPoint(lat2,lon1),KalmanPoint(lat2,lon2)).km
 	dx = (dx1+dx2)/2
 	return (dy,dx)
+
+def speed_calc(pos_list,date_list):
+	dist_list = [GreatCircleDistance(x,y) for x,y in zip(pos_list[:-1],pos_list[1:])]
+	time_list = [(y-x).days for x,y in zip(date_list[:-1],date_list[1:])]
+	return [dist/time for dist,time in zip(dist_list,time_list)]

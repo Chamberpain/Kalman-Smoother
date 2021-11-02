@@ -212,7 +212,8 @@ class FilterBase(object):
 			Q = self.Q_position_uncert_only #process noise without velocity noise
 		return self.A.dot(self.P_p[-1].dot(self.A.T))+Q #predicted estimate covariance
 
-	def eig_checker(self,C,value):
+	@staticmethod
+	def eig_checker(C,value):
 		C = C.reshape([2,2])
 		w,v = np.linalg.eig(C)
 		return 2*max(w)*np.sqrt(5.991)<value
@@ -289,7 +290,7 @@ class LeastSquares(FilterBase):
 class Kalman(FilterBase):
 	def __init__(self,float_class,sources,obs_holder,**kwds):
 		super(Kalman,self).__init__(float_class,sources,obs_holder,**kwds)
-		self.A=np.array([[1,1,0,0],[0,0.90,0,0],[0,0,1,1],[0,0,0,0.90]]) 
+		self.A=np.array([[1,1,0,0],[0,0.95,0,0],[0,0,1,1],[0,0,0,0.95]]) 
 		self.increment()
 # state matrix propogates to future with X(t)=X(t-1)+V(t-1), V(t)=V(t-1)
 	def increment(self):
@@ -315,7 +316,7 @@ class Smoother(Kalman):
 			self.decrement_filter()
 			self.decrement_date()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X[::-1]]
-		self.float.P = self.P
+		self.float.P = self.P[::-1]
 		self.error_calc('smoother')
 
 	def decrement_filter(self):

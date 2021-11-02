@@ -34,18 +34,19 @@ def compile_tuning_dataframe(error_folder):
 		depth_list.append(depth_noise)
 		stream_list.append(stream_noise)
 		interp_list.append(interp_noise)
+	misfit_list = [misfit for misfit,toa in zip(misfit_list,toa_list)]
 	toa_list = np.array(toa_list, dtype='a5')
-	toa_list[toa_list==b'62.5']=['High']
-	toa_list[toa_list==b'50.0']=['MedHigh']
-	toa_list[toa_list==b'37.5']=['Med']
-	toa_list[toa_list==b'25.0']=['MedLow']
+	# toa_list[toa_list==b'62.5']=['High']
+	# toa_list[toa_list==b'50.0']=['MedHigh']
+	toa_list[toa_list==b'37.5']=['High']
+	toa_list[toa_list==b'25.0']=['Med']
 	toa_list[toa_list==b'12.5']=['Low']
 
 	process_position_list = np.array(process_position_list, dtype='a5')
-	process_position_list[process_position_list==b'15.0']=['High']
-	process_position_list[process_position_list==b'12.0']=['MedHigh']
-	process_position_list[process_position_list==b'9.0']=['Med']
-	process_position_list[process_position_list==b'6.0']=['MedLow']
+	# process_position_list[process_position_list==b'15.0']=['High']
+	# process_position_list[process_position_list==b'12.0']=['MedHigh']
+	process_position_list[process_position_list==b'9.0']=['High']
+	process_position_list[process_position_list==b'6.0']=['Med']
 	process_position_list[process_position_list==b'3.0']=['Low']
 
 	process_vel_list = np.array(process_vel_list, dtype='a5')
@@ -54,10 +55,10 @@ def compile_tuning_dataframe(error_folder):
 	process_vel_list[process_vel_list==b'1.5']=['Low']
 
 	depth_list = np.array(depth_list, dtype='a5')
-	depth_list[depth_list==b'3750.']=['High']
-	depth_list[depth_list==b'3000.']=['MedHigh']
-	depth_list[depth_list==b'2250.']=['Med']
-	depth_list[depth_list==b'1500.']=['MedLow']
+	# depth_list[depth_list==b'3750.']=['High']
+	# depth_list[depth_list==b'3000.']=['MedHigh']
+	depth_list[depth_list==b'2250.']=['High']
+	depth_list[depth_list==b'1500.']=['Med']
 	depth_list[depth_list==b'750.0']=['Low']
 
 	stream_list = np.array(stream_list, dtype='a5')
@@ -82,10 +83,19 @@ def compile_tuning_dataframe(error_folder):
 	dataframe['Condition'] = [x.decode('utf-8') for x in dataframe['Condition'].tolist()]
 	return dataframe
 
-hue_order = ['Low', 'MedLo', 'Med','MedHi','High']	
+# file_handler = FilePathHandler(ROOT_DIR,'Tuning/TOADimes')
+# dataframe = compile_tuning_dataframe(file_handler.out_file(''))
+# dataframe = dataframe[dataframe['Error Type']!='Interp Noise']
+# dataframe = dataframe[dataframe.Condition.isin(['Med','Low','High'])]
+# print('Best TOA DIMES Is')
+# print(dataframe[dataframe.Misfit==dataframe.Misfit.min()])
+
+hue_order = ['Low','Med','High']	
 file_handler = FilePathHandler(ROOT_DIR,'Tuning/Dimes')
 dataframe = compile_tuning_dataframe(file_handler.out_file(''))
 dataframe = dataframe[dataframe['Error Type']!='Interp Noise']
+dataframe = dataframe[~dataframe['index'].isin(dataframe[~dataframe.Condition.isin(['Med','Low','High'])]['index'].unique())]
+
 fig = plt.figure(figsize=(20,14))
 plt.rcParams['font.size'] = 24
 params = dict(data=dataframe,
@@ -99,11 +109,11 @@ p = sns.stripplot(size=8,
                   linewidth=1,
                   hue_order=hue_order,
                   **params)
-p.set_yscale("log")
+# p.set_yscale("log")
 p_box = sns.boxplot(linewidth=6,hue_order=hue_order,**params)
 handles, labels = p_box.get_legend_handles_labels()
-plt.legend(handles[:3], labels[:3], title="Condition",
-          handletextpad=0.5, columnspacing=1,
+plt.legend(handles[:5], labels[:5], title="Condition",
+          handletextpad=0.5, columnspacing=1,ncol=5,bbox_to_anchor=(0.5, 1.13),
           loc="upper center", frameon=False)
 plt.xticks(rotation=20)
 print('Best DIMES Is')
@@ -113,6 +123,7 @@ plt.close()
 
 file_handler = FilePathHandler(ROOT_DIR,'Tuning/Weddell')
 dataframe = compile_tuning_dataframe(file_handler.out_file(''))
+dataframe = dataframe[~dataframe['index'].isin(dataframe[~dataframe.Condition.isin(['Med','Low','High'])]['index'].unique())]
 fig = plt.figure(figsize=(20,14))
 plt.rcParams['font.size'] = 24
 params = dict(data=dataframe,
@@ -130,7 +141,7 @@ p.set_yscale("log")
 p_box = sns.boxplot(linewidth=6,hue_order=hue_order,**params)
 handles, labels = p_box.get_legend_handles_labels()
 plt.legend(handles[:5], labels[:5], title="Condition",
-          handletextpad=0.5, columnspacing=3,
+          handletextpad=0.5, columnspacing=3,ncol=5,bbox_to_anchor=(0.5, 1.13),
           loc="upper center", frameon=False)
 plt.xticks(rotation=20)
 print('Best Weddell Sea Is')

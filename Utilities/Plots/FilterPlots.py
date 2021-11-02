@@ -1,5 +1,5 @@
 from KalmanSmoother.Utilities.Filters import LeastSquares,Kalman,Smoother,ObsHolder
-from KalmanSmoother.Utilities.Observations import SourceArray
+from KalmanSmoother.Utilities.Observations import SourceArray, Depth, Stream
 from KalmanSmoother.Utilities.Floats import DIMESAllFloats,WeddellAllFloats
 from GeneralUtilities.Filepath.instance import FilePathHandler
 from GeneralUtilities.Plot.Cartopy.eulerian_plot import BaseCartopy
@@ -21,10 +21,10 @@ class TrajDictCartopy(BaseCartopy):
 
 
 def optimal_weddell():
-	process_position_noise = 9.0
-	process_vel_noise = 1.5
+	process_position_noise = 12.0
+	process_vel_noise = 4.5
 	interp_noise = 360.0
-	depth_noise = 3000
+	depth_noise = 3750
 	stream_noise = 65.0
 	gps_noise = .1
 	toa_noise = 62.5
@@ -39,7 +39,6 @@ def optimal_weddell():
 	all_floats = WeddellAllFloats()
 	for idx,dummy in enumerate(all_floats.list):
 		print(idx)
-		obs_holder = ObsHolder(dummy)
 		dummy.toa.set_observational_uncertainty(toa_noise)
 		dummy.depth.set_observational_uncertainty(depth_noise)
 		dummy.stream.set_observational_uncertainty(stream_noise)
@@ -167,12 +166,12 @@ def optimal_weddell():
 
 
 def optimal_dimes():
-	process_position_noise = 9.0
+	process_position_noise = 12.0
 	process_vel_noise = 3.0
-	depth_noise = 3750
+	depth_noise = 3000
 	stream_noise = 97.5
 	gps_noise = .1
-	toa_noise = 62.5
+	toa_noise = 97.5
 	all_floats = DIMESAllFloats()
 
 	for idx,dummy in enumerate(all_floats.list):
@@ -180,6 +179,9 @@ def optimal_dimes():
 		dummy.toa.set_observational_uncertainty(toa_noise)
 		dummy.depth.set_observational_uncertainty(depth_noise)
 		dummy.stream.set_observational_uncertainty(stream_noise)
+		dummy.stream = Stream([],[],dummy.clock)
+		dummy.depth = Depth([],[],dummy.clock)
+
 		obs_holder = ObsHolder(dummy)
 		smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
 
