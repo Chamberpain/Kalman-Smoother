@@ -267,6 +267,7 @@ class FilterBase(object):
  				toa = self.toa_detrend(toa,soso)
  				misfit = toa_calc - toa
  				soso.assign_error(label,misfit)
+ 				self.float.assign_error(label,misfit)
  			self.increment_date()
 
 

@@ -2,10 +2,14 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-from Projects.KalmanSmoother.__init__ import ROOT_DIR
 from GeneralUtilities.Filepath.instance import FilePathHandler
-from KalmanSmoother.Utilities.__init__ import ROOT_DIR as ROOT_DIR_PLOT
-file_handler_dimes = FilePathHandler(ROOT_DIR,'Tuning/Dimes')
+from KalmanSmoother.Utilities.__init__ import ROOT_DIR
+from KalmanSmoother.Utilities.Floats import WeddellAllFloats,DIMESAllFloats,AllFloats
+from KalmanSmoother.Utilities.Filters import ObsHolder, Smoother
+import copy
+import datetime
+from geopy.distance import GreatCircleDistance
+file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
 class SeabornFig2Grid():
 
@@ -61,33 +65,111 @@ class SeabornFig2Grid():
         self.sg.fig.set_size_inches(self.fig.get_size_inches())
 
 
-dimes_date_diff = np.load(base_dir+'dimes_date_diff.npy').tolist()
-dimes_error = np.load(base_dir+'dimes_kalman_error_list.npy').tolist()
-dimes_toa = np.load(base_dir+'dimes_toa_number.npy').tolist()
-dimes_percent = np.load(base_dir+'dimes_percent.npy').tolist()
-dimes_mean = np.load(base_dir+'dimes_mean.npy').tolist()
+
+def obs_date_diff_list(dummy):
+    dates = np.sort(dummy.toa.date)
+    date_diff_list = []
+    toa_error_list = []
+    toa_number_list = []
+    pos_date = sorted(np.unique(dummy.pos_date))
+    for date in dates[1:]:
+        try:
+            idx = pos_date.index(date)
+            dummy.pos[idx]
+            dummy.clock.set_date(date)
+            AllFloats.sources.set_date(date)
+            toa_list = dummy.toa.return_data()
+            if not toa_list:
+                continue
+            dates_holder = dates[dates<date]
+            diff = (date-max(dates_holder)).days
+            date_diff_list.append(diff)
+
+            toa_number_list.append(len(toa_list))
+            holder = []
+            for toa,source in toa_list:
+                detrend_toa = dummy.clock.detrend_offset(toa)
+                detrend_toa = source.clock.detrend_offset(detrend_toa)
+                dist = GreatCircleDistance(source.position,dummy.pos[idx]).km
+                dist_toa = source.toa_from_dist(dist)
+                holder.append(abs(detrend_toa-dist_toa))
+            toa_error_list.append(np.mean(holder))
+        except ValueError:
+            continue
+        except IndexError:
+            continue
+    return (date_diff_list,toa_error_list,toa_number_list)
 
 
-weddell_date_diff = np.load(base_dir+'weddell_date_diff.npy').tolist()
-weddell_error = np.load(base_dir+'weddell_kalman_error_list.npy').tolist()
-weddell_toa = np.load(base_dir+'weddell_toa_number.npy').tolist()
-weddell_percent = np.load(base_dir+'weddell_percent.npy').tolist()
-weddell_mean = np.load(base_dir+'weddell_mean.npy').tolist()
 
-idx = -1
-dimes_dataframe = pd.DataFrame({'Date Diff':dimes_date_diff[:idx],'Error':dimes_error[:idx],'TOA Number':dimes_toa[:idx],'Float Type':'DIMES'})
-weddell_dataframe = pd.DataFrame({'Date Diff':weddell_date_diff[:idx],'Error':weddell_error[:idx],'TOA Number':weddell_toa[:idx],'Float Type':'Weddell'})
-dataframe = pd.concat([dimes_dataframe,weddell_dataframe])
-dataframe = dataframe[dataframe['TOA Number']<8]
-dataframe = dataframe.reset_index()
 
+process_position_noise = 15.0
+process_vel_noise = 4.5
+interp_noise = 360.0
+depth_noise = 3750
+stream_noise = 97.5
+gps_noise = .1
+toa_noise = 62.5
+WeddellAllFloats.list = []
+all_floats = WeddellAllFloats()
+for idx,dummy in enumerate(all_floats.list):
+    print(idx)
+    dummy.toa.set_observational_uncertainty(toa_noise)
+    dummy.depth.set_observational_uncertainty(depth_noise)
+    dummy.stream.set_observational_uncertainty(stream_noise)
+    dummy.gps.interp_uncertainty = interp_noise
+    obs_holder = ObsHolder(dummy)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+
+weddell_list = copy.deepcopy(WeddellAllFloats.list)
+
+DIMESAllFloats.list=[]
+process_position_noise = 15.0
+process_vel_noise = 4.5
+depth_noise = 3750
+stream_noise = 65.0
+gps_noise = .1
+toa_noise = 62.5
+all_floats = DIMESAllFloats()
+for idx,dummy in enumerate(all_floats.list) :
+    print(idx)
+    dummy.toa.set_observational_uncertainty(toa_noise)
+    dummy.stream.set_observational_uncertainty(stream_noise)
+    dummy.depth.set_observational_uncertainty(depth_noise)
+    obs_holder = ObsHolder(dummy)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+dimes_list = copy.deepcopy(DIMESAllFloats.list)
+floatlist = weddell_list+dimes_list
+
+data_df_list = []
+float_df_list = []
+for x in floatlist:
+    try:
+        toa_percent = x.percent_obs()
+        date_diff_list,toa_error_list,toa_number_list = obs_date_diff_list(x)
+        toa_number_list = np.array(toa_number_list)
+        toa_number_list[toa_number_list>3]=3
+        mean_error = np.mean(toa_error_list)
+        print(x.floatname)
+        data_df = pd.DataFrame({'Date Diff':date_diff_list,'Error':toa_error_list,
+            'TOA Number':toa_number_list,'Float Type':x.type})
+        float_df = pd.DataFrame({'TOA Percent':[(toa_percent*100)],
+            'Error':[mean_error],'Float Type':[x.type]})
+        data_df_list.append(data_df)
+        float_df_list.append(float_df)
+    except AttributeError:
+        continue
+data_df = pd.concat(data_df_list)
+
+float_df = pd.concat(float_df_list)
+float_df = float_df[float_df['TOA Percent']>5]
 
 sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 ax = sns.lmplot(x='Date Diff', y="Error",
                 hue="Float Type",line_kws={'lw':6},
                 scatter_kws={'alpha':0.55},
-                data=dataframe)
+                data=data_df)
 ax.set(yscale='log')
 ax.set(xscale='log')
 ax.set(ylabel='TOA Error (s)')
@@ -99,9 +181,9 @@ for lh in leg.legendHandles:
     lh.set_alpha(1)
     lh.set_sizes([500])
 ax.fig.set_size_inches(12,12)
-plt.ylim([0.1,dataframe.Error.max()+10])
+plt.ylim([0.1,data_df.Error.max()+10])
 plt.tight_layout()
-plt.savefig(file_handler.out_file('date_diff_error'))
+plt.savefig(file_handler.out_file('Figure_12'))
 plt.close()
 
 
@@ -111,45 +193,40 @@ sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 sns.stripplot(x="TOA Number", y="Error",
                 hue='Float Type',dodge=True, alpha=.25, zorder=1,
-                data=dataframe)
+                data=data_df)
 sns.pointplot(x="TOA Number", y="Error", hue='Float Type',
-              data=dataframe, dodge=.8 - .8 / 3,
+              data=data_df, dodge=.8 - .8 / 3,
               join=False, palette="dark",
               markers="d", scale=2, ci=None)
 handles, labels = ax.get_legend_handles_labels()
 ax.legend(handles[2:], labels[2:], title="Type",
           handletextpad=0, columnspacing=1,
           loc="upper right", ncol=3, frameon=True)
-ax.set_xticklabels(['0','1','2','3','4','5'])
+ax.set_xticklabels(['1','2','3+'])
 ax.set_ylabel('TOA Error (s)')
 ax.set_xlabel('Sound Sources Heard')
-plt.ylim([0.01,dataframe.Error.max()+10])
+plt.ylim([0.01,data_df.Error.max()+10])
 
 plt.yscale('log')
 plt.tight_layout()
-plt.savefig(file_handler.out_file('toa_number_error'))
+plt.savefig(file_handler.out_file('Figure_13'))
 plt.close()
-
-weddell_dataframe = pd.DataFrame({'TOA Percent':[x*100 for x in weddell_percent],'Error':weddell_mean,'Float Type':'Wedell'})
-weddell_dataframe = weddell_dataframe[weddell_dataframe['TOA Percent']>5]
-dimes_dataframe = pd.DataFrame({'TOA Percent':[x*100 for x in dimes_percent],'Error':dimes_mean,'Float Type':'DIMES'})
-dataframe = pd.concat([dimes_dataframe,weddell_dataframe])
-
 
 sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 ax = sns.lmplot(
-    data = dataframe,
+    data = float_df,
     x='TOA Percent',y='Error',hue='Float Type',line_kws={'lw':6},
                 scatter_kws={'alpha':0.55})
 ax.set(yscale='log')
 ax.set(ylabel='Mean TOA Error (s)')
 leg = ax._legend
-leg.set_bbox_to_anchor([0.8,0.7])
+leg.set_bbox_to_anchor([0.85,0.9])
 for lh in leg.legendHandles: 
     lh.set_alpha(1)
     lh.set_sizes([500])
+plt.ylim([float_df.Error.min(),110])
 ax.fig.set_size_inches(12,12)
 plt.tight_layout()
-plt.savefig(file_handler.out_file('toa_percent_error'))
+plt.savefig(file_handler.out_file('Figure_14'))
 plt.close()

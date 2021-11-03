@@ -1,40 +1,67 @@
-class WeddellAllFloatsPlot(WeddellAllFloats):
-	def weddell_plot(self):
-		plt.figure()
-		lllon = -60
-		urlon = 35
-		lllat = -75
-		urlat = -50
-		m = Basemap.auto_map(urlat,lllat,urlon,lllon,0,spacing=15,aspect=False)
-		first_lat_list= []
-		first_lon_list = []
-		last_lat_list = []
-		last_lon_list = []
+from GeneralUtilities.Plot.Cartopy.regional_plot import WeddellSeaCartopy
+from KalmanSmoother.Utilities.Floats import WeddellAllFloats
+from KalmanSmoother.Utilities.Filters import Smoother,ObsHolder
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+import numpy as np
+from KalmanSmoother.Utilities.__init__ import ROOT_DIR
+from GeneralUtilities.Filepath.instance import FilePathHandler
+file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
-		for k,all_dummy in enumerate(self.list):	
-			lat,lon = list(zip(*[(_.lat.decimal_degree,_.lon.decimal_degree) for _ in all_dummy.pos]))
-			first_lat_list.append(lat[0])
-			first_lon_list.append(lon[0])
-			last_lat_list.append(lat[-1])
-			last_lon_list.append(lon[-1])
 
-			A,B,angle = list(zip(*[all_dummy.uncertainty_ellipse(_) for _ in all_dummy.pos_date]))
-			m.scatter(lon,lat,s=1.5,c=np.array(A)*11.3,latlon=True,alpha=0.2)
-		lat_list = []
-		lon_list = []
-		for _,source in self.sources.array.items():
-			if source.mission=='Weddell':
-				lat_list.append(source.position.latitude)
-				lon_list.append(source.position.longitude)
-		plt.colorbar(label='Uncertainty (km)')
-		m.scatter(first_lon_list,first_lat_list,s=13,c='m',latlon=True,marker='^')
-		m.scatter(last_lon_list,last_lat_list,s=13,c='m',latlon=True,marker='s')
-		m.scatter(lon_list,lat_list,s=13,c='r',latlon=True)
-		plt.savefig('weddell_plot')
-		plt.close()
-		plt.figure()
-		dummy_list = self.all_toa_error_list('smoother')
-		plt.hist(dummy_list,bins=75)
-		plt.xlim([-20,20])
-		plt.xlabel('Misfit (seconds)', fontsize=18)
-		plt.savefig('Weddell_stats')
+WeddellAllFloats.list = []
+process_position_noise = 9
+process_vel_noise = 3.0
+interp_noise = 360.0
+depth_noise = 2250
+stream_noise = 32.5
+gps_noise = .1
+toa_noise = 37.5
+all_floats = WeddellAllFloats()
+for idx,dummy in enumerate(all_floats.list):
+    print(idx)
+    dummy.toa.set_observational_uncertainty(toa_noise)
+    dummy.depth.set_observational_uncertainty(depth_noise)
+    dummy.stream.set_observational_uncertainty(stream_noise)
+    dummy.gps.interp_uncertainty = interp_noise
+    obs_holder = ObsHolder(dummy)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+
+first_lat_list= []
+first_lon_list = []
+last_lat_list = []
+last_lon_list = []
+lat = []
+lon = []
+uncert_list = []
+
+for k,dummy in enumerate(all_floats.list):	
+	for idx in range(len(dummy.P)):
+		C = dummy.P[idx][[0,0,2,2],[0,2,0,2]]
+		C = C.reshape([2,2])
+		w,v = np.linalg.eig(C)
+		uncert_list.append(2*max(w)*np.sqrt(5.991))
+	lat_holder,lon_holder = list(zip(*[(x.latitude,x.longitude) for x in dummy.pos]))
+	lat += lat_holder
+	lon += lon_holder
+	first_lat_list.append(lat[0])
+	first_lon_list.append(lon[0])
+	last_lat_list.append(lat[-1])
+	last_lon_list.append(lon[-1])
+lon_grid,lat_grid,ax = WeddellSeaCartopy().get_map()
+norm=colors.LogNorm(vmin=10, vmax=max(uncert_list))
+cm = plt.cm.get_cmap('copper')
+sc = ax.scatter(lon,lat,s=2.2,c=uncert_list,alpha=0.8,norm=norm,cmap=cm)
+plt.colorbar(sc,label='Uncertainty (km)',location='bottom')
+
+lat_list = []
+lon_list = []
+for _,source in smooth.sources.array.items():
+	if source.mission=='Weddell':
+		lat_list.append(source.position.latitude)
+		lon_list.append(source.position.longitude)
+ax.scatter(first_lon_list,first_lat_list,s=17,c='m',marker='^')
+ax.scatter(last_lon_list,last_lat_list,s=17,c='m',marker='s')
+ax.scatter(lon_list,lat_list,s=17,c='r')
+plt.savefig(file_handler.out_file('Figure_15'))
+plt.close()

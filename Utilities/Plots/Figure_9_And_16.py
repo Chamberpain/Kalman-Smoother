@@ -112,7 +112,7 @@ p = sns.stripplot(size=8,
 # p.set_yscale("log")
 p_box = sns.boxplot(linewidth=6,hue_order=hue_order,**params)
 handles, labels = p_box.get_legend_handles_labels()
-plt.legend(handles[:5], labels[:5], title="Condition",
+plt.legend(handles[:3], labels[:3], title="Condition",
           handletextpad=0.5, columnspacing=1,ncol=5,bbox_to_anchor=(0.5, 1.13),
           loc="upper center", frameon=False)
 plt.xticks(rotation=20)
@@ -140,7 +140,7 @@ p = sns.stripplot(size=8,
 p.set_yscale("log")
 p_box = sns.boxplot(linewidth=6,hue_order=hue_order,**params)
 handles, labels = p_box.get_legend_handles_labels()
-plt.legend(handles[:5], labels[:5], title="Condition",
+plt.legend(handles[:3], labels[:3], title="Condition",
           handletextpad=0.5, columnspacing=3,ncol=5,bbox_to_anchor=(0.5, 1.13),
           loc="upper center", frameon=False)
 plt.xticks(rotation=20)

@@ -55,6 +55,7 @@ class FloatBase(object):
 		self.gps = self.gps_parser(self.floatname)
 		self.initialize_clock() #gets data from various sources (inital and final + drift and offset) to start the clock
 		self.gps.clock = self.clock
+		self.error = {'kalman':[],'smoother':[],'ls':[]}
 
 	def obs_dates(self):
 		return np.sort(np.unique(self.toa.date+self.gps.date))
@@ -67,6 +68,12 @@ class FloatBase(object):
 		pos_index = self.pos_date.index(self.clock.date)
 		pos = self.pos[pos_index]
 		return pos
+
+	def assign_error(self,label,error):
+		self.error[label].append(error)
+
+	def return_error(self,label):
+		return self.error[label]
 
 class FloatToken(FloatBase):
 	def __init__(self,match,sources,**kwds):
@@ -229,7 +236,6 @@ class WeddellFloat(FloatToken):
 
 class AllFloats(object):
 	sources = SourceArray()
-	list = []
 	def __init__(self,*args,**kwargs):
 		dir_,float_type,ext_ = self.sources_dict
 		base_matches = find_files(dir_,ext_)
@@ -269,6 +275,7 @@ class AllFloats(object):
 
 class WeddellAllFloats(AllFloats):
 	sources_dict = (project_base+'/Data/Data/',WeddellFloat,'*.itm')
+	list = []
 	def __init__(self,*args,**kwargs):
 		super().__init__(*args,**kwargs)
 
@@ -341,7 +348,7 @@ class WeddellAllFloats(AllFloats):
 
 class DIMESAllFloats(AllFloats):
 	sources_dict =	(project_base+'/Data/DIMES/',DIMESFloatBase,'rf*toa.mat')
-
+	list = []
 	def assign_soso_drift_errors(self):
 		df_list = []
 		for float_ in self.list:

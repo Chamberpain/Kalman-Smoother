@@ -46,6 +46,6 @@ def dx_dy_distance(point1,point2):
 	return (dy,dx)
 
 def speed_calc(pos_list,date_list):
-	dist_list = [GreatCircleDistance(x,y) for x,y in zip(pos_list[:-1],pos_list[1:])]
+	dist_list = [GreatCircleDistance(x,y).km for x,y in zip(pos_list[:-1],pos_list[1:])]
 	time_list = [(y-x).days for x,y in zip(date_list[:-1],date_list[1:])]
 	return [dist/time for dist,time in zip(dist_list,time_list)]
