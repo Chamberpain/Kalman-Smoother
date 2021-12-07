@@ -35,6 +35,8 @@ def pie_plot_list(list_):
 label = ['No Source','1 Source','2 Sources','3+ Sources']
 lats = np.arange(-90,91,1)
 lons = np.arange(-180,181,1)
+all_dimes = DIMESAllFloats()
+all_weddell = WeddellAllFloats()
 
 fig = plt.figure(figsize=(12,8))
 ax1 = fig.add_subplot(2,2,1, projection=ccrs.PlateCarree())
@@ -45,7 +47,13 @@ ax1.streamline_plot()
 cf = ax1.bathy()
 lat_list = []
 lon_list = []
-all_dimes = DIMESAllFloats()
+for dummy in all_dimes.list:
+	lat_list.append(dummy.gps.obs[0].latitude)
+	lon_list.append(dummy.gps.obs[0].longitude)
+ax1.scatter(lon_list,lat_list,c='m',marker='^')
+
+lat_list = []
+lon_list = []
 for _,source in all_dimes.sources.array.items():
 	if source.mission=='DIMES':
 		lat_list.append(source.position.latitude)
@@ -63,11 +71,15 @@ ax2 = fig.add_subplot(2,2,2, projection=ccrs.PlateCarree())
 XX,YY,ax2 = WeddellSeaCartopy(lat_grid=lats,lon_grid=lons,ax=ax2).get_map()
 ax2.streamline_plot()
 ax2.bathy()
+
 lat_list = []
 lon_list = []
-WeddellAllFloats.reset_floats()
-assert len(WeddellAllFloats.list)==0
-all_weddell = WeddellAllFloats()
+for dummy in all_weddell.list:
+	lat_list.append(dummy.gps.obs[0].latitude)
+	lon_list.append(dummy.gps.obs[0].longitude)
+ax2.scatter(lon_list,lat_list,c='m',marker='^')
+lat_list = []
+lon_list = []
 for _,source in all_weddell.sources.array.items():
 	if source.mission=='Weddell':
 		lat_list.append(source.position.latitude)

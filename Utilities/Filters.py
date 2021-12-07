@@ -5,7 +5,6 @@ from KalmanSmoother.Utilities.Utilities import dx_dy_distance
 from geopy.distance import GreatCircleDistance
 from KalmanSmoother.Utilities.Observations import Depth,Stream
 
-
 class ObsHolder(object):
 	def __init__(self,floatclass):
 		self.gps_class = floatclass.gps
@@ -272,6 +271,9 @@ class FilterBase(object):
 
 
 class LeastSquares(FilterBase):
+	max_vel_uncert= 100000000
+	max_vel = 100000000
+	max_x_diff = 100000000
 	def __init__(self,float_class,sources,obs_holder,**kwds):
 		super(LeastSquares,self).__init__(float_class,sources,obs_holder,**kwds)
 		self.A=np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]) 
@@ -282,6 +284,7 @@ class LeastSquares(FilterBase):
 			#print(self.date)
 			self.increment_date()
 			assert self.date == self.float.clock.date
+			self.Q = np.diag([self.process_position_noise,self.process_vel_noise,self.process_position_noise,self.process_vel_noise])
 			self.increment_filter()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X_p]
 		assert len(self.float.pos)==len(self.date_list)
@@ -303,6 +306,7 @@ class Kalman(FilterBase):
 		assert len(self.float.pos)==len(self.date_list)
 		self.float.pos_date = self.date_list
 		self.float.kalman_pos = self.float.pos
+		self.float.X_m = self.X_m[:]
 		self.error_calc('kalman')
 
 class Smoother(Kalman):
@@ -318,6 +322,7 @@ class Smoother(Kalman):
 			self.decrement_date()
 		self.float.pos = [self.pos_from_state(_) for _ in self.X[::-1]]
 		self.float.P = self.P[::-1]
+		self.float.X_s = self.X[::-1]
 		self.error_calc('smoother')
 
 	def decrement_filter(self):

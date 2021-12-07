@@ -78,6 +78,7 @@ for lh in leg.legendHandles:
     lh.set_alpha(1)
     lh.set_sizes([500])
 ax.fig.set_size_inches(13,10)
+ax.set(ylim=(0.1, 100))
 plt.tight_layout()
 plt.savefig(file_handler.out_file('Figure_6'))
 plt.close()
@@ -90,7 +91,7 @@ ax = sns.lmplot(x="TOA Uncertainty", y="Pos Error",
                 scatter_kws={'alpha':0.07},col_order=['High','Med','Low'],hue_order=['Least Squares','Kalman','Smoother']
                 ,data=dataframe,facet_kws=dict(legend_out=False)).set_titles('')
 ax.set(yscale='log')
-ax.set(ylim=(0.1, 50))
+ax.set(ylim=(0.1, 100))
 ax.axes[0][0].annotate('a', xy = (0.1,0.80),xycoords='axes fraction',zorder=10,size=52,bbox=dict(boxstyle="round", fc="0.8"),)
 ax.axes[0][0].annotate('High', xy = (0.3,0.05),xycoords='axes fraction',zorder=10,size=52)
 

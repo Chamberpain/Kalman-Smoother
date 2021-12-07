@@ -21,13 +21,13 @@ file_handler = FilePathHandler(ROOT_DIR_PLOT,'FinalFloatsPlot')
 matplotlib.rcParams.update({'font.size': 22})
 
 WeddellAllFloats.list = []
-process_position_noise = 15.0
-process_vel_noise = 4.5
+process_position_noise = 9.0
+process_vel_noise = 3.0
 interp_noise = 360.0
-depth_noise = 3750
-stream_noise = 97.5
+depth_noise = 2250
+stream_noise = 32.5
 gps_noise = .1
-toa_noise = 62.5
+toa_noise = 37.5
 
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):
@@ -46,7 +46,7 @@ for idx,dummy in enumerate(all_floats.list):
     dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list = dummy.toa.calculate_error_list(dummy.pos,dummy.pos_date)
     smooth_toa_error += toa_error_list
     smooth_speed += speed_calc(dummy.pos,dummy.pos_date)
-smooth_speed = [x.km for x in smooth_speed]
+smooth_speed = [x for x in smooth_speed]
 
 
 fig = plt.figure(figsize=(12,12))
@@ -69,13 +69,12 @@ plt.savefig(file_handler.out_file('Figure_17'))
 
 
 del all_floats
-assert AllFloats.list == []
-process_position_noise = 15.0
+process_position_noise = 9.0
 process_vel_noise = 4.5
-depth_noise = 3750
-stream_noise = 65.0
+depth_noise = 2250
+stream_noise = 32.5
 gps_noise = .1
-toa_noise = 62.5
+toa_noise = 37.5
 all_floats = DIMESAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)

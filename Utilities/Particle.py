@@ -22,26 +22,29 @@ def particle_release():
 			print(idx)
 			dummy = all_floats.random(percent)
 			try:
+				toa_error = (dummy.toa_noise)
+				toa_number = (dummy.toa_number)
+				percent_list = (percent)
+
 				process_noise = (all_floats.var_x)*percent
 				process_position_noise = process_noise
 				process_vel_noise = process_noise
 				gps_number= len(dummy.gps.obs)
-				ls = LeastSquares(dummy,all_floats.sources,ObsHolder(dummy),process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+				ls = LeastSquares(dummy,all_floats.sources,ObsHolder(dummy),process_position_noise=process_position_noise*1000,process_vel_noise =process_vel_noise*1000)
 				ls_pos_misfit = pos_misfit_calc(dummy.pos[:-1],dummy.exact_pos)
-
+				assert ls_pos_misfit>0
 				smooth =Smoother(dummy,dummy.sources,ObsHolder(dummy),process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
 				smoother_pos_misfit = pos_misfit_calc(dummy.pos[:-1],dummy.exact_pos)
 				kalman_pos_misfit = pos_misfit_calc(dummy.kalman_pos[:-1],dummy.exact_pos)
-
+				assert kalman_pos_misfit>0
 				ls_toa_misfit,kalman_toa_misfit,smoother_toa_misfit = dummy.sources.return_misfit()
 				if smoother_pos_misfit>ls_pos_misfit:
 					print('LS Pos Misfit is Lowest')
-				toa_error = (dummy.toa_noise)
-				toa_number = (dummy.toa_number)
-				percent_list = (percent)
+
 				filename= make_filename()
 				np.save(filename,[toa_error,toa_number,percent_list,gps_number, \
 					smoother_pos_misfit,kalman_pos_misfit,ls_pos_misfit,smoother_toa_misfit,kalman_toa_misfit,ls_toa_misfit])
 			except:
+				print('encountered an error, advancing')
 				continue
 			all_floats.sources.reset_error()

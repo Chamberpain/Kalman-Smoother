@@ -6,17 +6,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 from GeneralUtilities.Filepath.instance import FilePathHandler
+import cartopy.crs as ccrs
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
 
 WeddellAllFloats.list = []
-process_position_noise = 9
-process_vel_noise = 3.0
-interp_noise = 360.0
-depth_noise = 2250
-stream_noise = 32.5
+process_position_noise = 20.25
+process_vel_noise = 0.5625
+interp_noise = 14400.0
+depth_noise = 5625
+stream_noise = 900.0
 gps_noise = .1
-toa_noise = 37.5
+toa_noise = 64.0
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)
@@ -48,10 +49,12 @@ for k,dummy in enumerate(all_floats.list):
 	first_lon_list.append(lon[0])
 	last_lat_list.append(lat[-1])
 	last_lon_list.append(lon[-1])
-lon_grid,lat_grid,ax = WeddellSeaCartopy().get_map()
+fig = plt.figure(figsize=(15,15))
+ax = fig.add_subplot(1,1,1,projection=ccrs.PlateCarree())
+lon_grid,lat_grid,ax = WeddellSeaCartopy(ax=ax).get_map()
 norm=colors.LogNorm(vmin=10, vmax=max(uncert_list))
 cm = plt.cm.get_cmap('copper')
-sc = ax.scatter(lon,lat,s=2.2,c=uncert_list,alpha=0.8,norm=norm,cmap=cm)
+sc = ax.scatter(lon,lat,s=5,c=uncert_list,alpha=0.8,norm=norm,cmap=cm)
 plt.colorbar(sc,label='Uncertainty (km)',location='bottom')
 
 lat_list = []
@@ -60,8 +63,8 @@ for _,source in smooth.sources.array.items():
 	if source.mission=='Weddell':
 		lat_list.append(source.position.latitude)
 		lon_list.append(source.position.longitude)
-ax.scatter(first_lon_list,first_lat_list,s=17,c='m',marker='^')
-ax.scatter(last_lon_list,last_lat_list,s=17,c='m',marker='s')
-ax.scatter(lon_list,lat_list,s=17,c='r')
+ax.scatter(first_lon_list,first_lat_list,s=50,c='m',marker='^')
+ax.scatter(last_lon_list,last_lat_list,s=50,c='m',marker='s')
+ax.scatter(lon_list,lat_list,s=50,c='r')
 plt.savefig(file_handler.out_file('Figure_15'))
 plt.close()

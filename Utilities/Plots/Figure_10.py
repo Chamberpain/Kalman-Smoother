@@ -13,6 +13,11 @@ import cartopy.crs as ccrs
 import matplotlib as mpl
 from KalmanSmoother.Utilities.Floats import DIMESAllFloats
 from KalmanSmoother.Utilities.Filters import LeastSquares,Kalman,Smoother,ObsHolder
+import matplotlib
+from KalmanSmoother.Utilities.Observations import SourceArray,Depth,Stream
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import datetime
+
 
 font = {'family' : 'normal',
         'size'   : 18}
@@ -47,12 +52,12 @@ kalman_norm = mpl.colors.BoundaryNorm(bounds, kalman_cm.N)
 
 
 
-process_position_noise = 15.0
-process_vel_noise = 4.5
-depth_noise = 3750
-stream_noise = 65.0
+process_position_noise = 0.5625
+process_vel_noise = 2.25
+depth_noise = 202500
+stream_noise = 400
 gps_noise = .1
-toa_noise = 62.5
+toa_noise = 16
 all_floats = DIMESAllFloats()
 
 for idx,dummy in enumerate(all_floats.list):
@@ -60,12 +65,14 @@ for idx,dummy in enumerate(all_floats.list):
 	dummy.toa.set_observational_uncertainty(toa_noise)
 	dummy.stream.set_observational_uncertainty(stream_noise)
 	dummy.depth.set_observational_uncertainty(depth_noise)
+	dummy.gps.gps_interp_uncertainty = interp_noise
 
+	# dummy.depth = Depth([],[],dummy.clock)
+	# dummy.stream = Stream([],[],dummy.clock)
 	obs_holder = ObsHolder(dummy)
 	smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
 
-for x in all_floats.list:
-	assert len(toa_number)==len(lats)
+
 
 for dummy in all_floats.list:
 	print(dummy.floatname)
@@ -85,16 +92,14 @@ for dummy in all_floats.list:
 		}
 	plt.scatter(lons,lats,c = toa_num,label='Kalman',alpha=0.6,cmap=kalman_cm,norm=kalman_norm)
 	plt.scatter(trj_lons,trj_lats,c=toa_num[:len(trj_lons)],label='ARTOA',alpha=0.6,cmap=artoa_cm,norm=artoa_norm)
-	plt.show()
-
-	plt.savefig(str(holder.floatname))
+	plt.savefig(str(dummy.floatname))
 	plt.close()
 
 
 float_list = [x.floatname for x in all_floats.list]
 fig = plt.figure(figsize=(12,12))
 axs = [fig.add_subplot(2,2,x,projection=ccrs.PlateCarree()) for x in [1,2,3,4]]
-for holder in zip(axs,[853,854,802,832],['a','b','c','d']):
+for holder in zip(axs,[853,854,802,808],['a','b','c','d']):
 	print(holder)
 	ax,name,label = holder
 	float_idx = float_list.index(name)
@@ -125,7 +130,8 @@ axins1 = inset_axes(axs[0],
 					borderpad=-4
                     )
 
-fig.colorbar(art,cax=axins1, orientation="horizontal",label='ARTOA Sources Heard')
+cbar1 = fig.colorbar(art,cax=axins1, orientation="horizontal",label='ARTOA Sources Heard')
+cbar1.ax.set_xticklabels(['0','1','2','3+'])
 axins2 = inset_axes(axs[1],
                     width="100%",  # width = 50% of parent_bbox width
                     height="5%",  # height : 5%
@@ -133,7 +139,8 @@ axins2 = inset_axes(axs[1],
 					borderpad=-4
                     )
 
-fig.colorbar(ks,cax=axins2, orientation="horizontal",label='Kalman Sources Heard')
+cbar2 = fig.colorbar(ks,cax=axins2, orientation="horizontal",label='Kalman Sources Heard')
+cbar2.ax.set_xticklabels(['0','1','2','3+'])
 
 
 plt.savefig(file_handler.out_file('Figure_10'))

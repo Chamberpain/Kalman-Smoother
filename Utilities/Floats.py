@@ -57,6 +57,9 @@ class FloatBase(object):
 		self.gps.clock = self.clock
 		self.error = {'kalman':[],'smoother':[],'ls':[]}
 
+	def model_size(self,P):
+		return [(X_s-X_m).T.dot(P).dot(X_s-X_m)[0][0] for X_m,X_s in zip(self.X_m,self.X_s)]
+
 	def obs_dates(self):
 		return np.sort(np.unique(self.toa.date+self.gps.date))
 
@@ -250,6 +253,17 @@ class AllFloats(object):
 	def reset_floats(cls):
 		cls.list = []
 
+	def reset_state(self):
+		for float_ in self.list:
+			float_.X_m = []
+			float_.X_s = []
+
+	def return_model_size(self,P):
+		model_size_list = []
+		for float_ in self.list:
+			model_size_list += float_.model_size(P)
+		return np.linalg.norm(model_size_list)
+
 	def combine_classes(self):
 		new_list = []
 		name_list = np.array([_.floatname for _ in self.list])
@@ -413,6 +427,7 @@ class FloatGen(FloatBase):
 		self.toa_number = toa_number
 		self.sources = sources
 		self.sources.set_location(KalmanPoint(-64,-23.5))
+		self.error = {'kalman':[],'smoother':[],'ls':[]}
 		weddell_source_list = []
 		for item in sources.array:
 			if sources.array[item].mission=='Weddell':
