@@ -17,7 +17,7 @@ import matplotlib
 from KalmanSmoother.Utilities.Observations import SourceArray,Depth,Stream
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import datetime
-
+from KalmanSmoother.Utilities.DataLibrary import dimes_position_process,dimes_velocity_process,dimes_depth_noise,dimes_stream_noise,dimes_toa_noise,dimes_interp_noise
 
 font = {'family' : 'normal',
         'size'   : 18}
@@ -51,26 +51,19 @@ bounds = np.linspace(0, 3, 4)
 kalman_norm = mpl.colors.BoundaryNorm(bounds, kalman_cm.N)
 
 
-
-process_position_noise = 0.5625
-process_vel_noise = 2.25
-depth_noise = 202500
-stream_noise = 400
-gps_noise = .1
-toa_noise = 16
 all_floats = DIMESAllFloats()
 
 for idx,dummy in enumerate(all_floats.list):
 	print(idx)
-	dummy.toa.set_observational_uncertainty(toa_noise)
-	dummy.stream.set_observational_uncertainty(stream_noise)
-	dummy.depth.set_observational_uncertainty(depth_noise)
-	dummy.gps.gps_interp_uncertainty = interp_noise
+	dummy.toa.set_observational_uncertainty(dimes_toa_noise)
+	dummy.stream.set_observational_uncertainty(dimes_stream_noise)
+	dummy.depth.set_observational_uncertainty(dimes_depth_noise)
+	dummy.gps.gps_interp_uncertainty = dimes_interp_noise
 
 	# dummy.depth = Depth([],[],dummy.clock)
 	# dummy.stream = Stream([],[],dummy.clock)
 	obs_holder = ObsHolder(dummy)
-	smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+	smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=dimes_position_process,process_vel_noise =dimes_velocity_process)
 
 
 

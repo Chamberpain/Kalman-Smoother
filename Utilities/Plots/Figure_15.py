@@ -8,25 +8,19 @@ from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 from GeneralUtilities.Filepath.instance import FilePathHandler
 import cartopy.crs as ccrs
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
+from KalmanSmoother.Utilities.DataLibrary import weddell_position_process,weddell_velocity_process,weddell_depth_noise,weddell_stream_noise,weddell_toa_noise,weddell_interp_noise
 
 
 WeddellAllFloats.list = []
-process_position_noise = 20.25
-process_vel_noise = 0.5625
-interp_noise = 14400.0
-depth_noise = 5625
-stream_noise = 900.0
-gps_noise = .1
-toa_noise = 64.0
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)
-    dummy.toa.set_observational_uncertainty(toa_noise)
-    dummy.depth.set_observational_uncertainty(depth_noise)
-    dummy.stream.set_observational_uncertainty(stream_noise)
-    dummy.gps.interp_uncertainty = interp_noise
+    dummy.toa.set_observational_uncertainty(weddell_toa_noise)
+    dummy.depth.set_observational_uncertainty(weddell_depth_noise)
+    dummy.stream.set_observational_uncertainty(weddell_stream_noise)
+    dummy.gps.interp_uncertainty = weddell_interp_noise
     obs_holder = ObsHolder(dummy)
-    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=weddell_position_process,process_vel_noise =weddell_velocity_process)
 
 first_lat_list= []
 first_lon_list = []

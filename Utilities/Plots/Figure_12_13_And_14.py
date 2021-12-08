@@ -9,10 +9,12 @@ from KalmanSmoother.Utilities.Filters import ObsHolder, Smoother
 import copy
 import datetime
 from geopy.distance import GreatCircleDistance
+from KalmanSmoother.Utilities.DataLibrary import dimes_position_process,dimes_velocity_process,dimes_depth_noise,dimes_stream_noise,dimes_toa_noise,dimes_interp_noise
+from KalmanSmoother.Utilities.DataLibrary import weddell_position_process,weddell_velocity_process,weddell_depth_noise,weddell_stream_noise,weddell_toa_noise,weddell_interp_noise
+
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
 class SeabornFig2Grid():
-
     def __init__(self, seaborngrid, fig,  subplot_spec):
         self.fig = fig
         self.sg = seaborngrid
@@ -100,44 +102,27 @@ def obs_date_diff_list(dummy):
             continue
     return (date_diff_list,toa_error_list,toa_number_list)
 
-
-
-
-process_position_noise = 15.0
-process_vel_noise = 4.5
-interp_noise = 360.0
-depth_noise = 3750
-stream_noise = 97.5
-gps_noise = .1
-toa_noise = 62.5
 WeddellAllFloats.list = []
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)
-    dummy.toa.set_observational_uncertainty(toa_noise)
-    dummy.depth.set_observational_uncertainty(depth_noise)
-    dummy.stream.set_observational_uncertainty(stream_noise)
-    dummy.gps.interp_uncertainty = interp_noise
+    dummy.toa.set_observational_uncertainty(weddell_toa_noise)
+    dummy.depth.set_observational_uncertainty(weddell_depth_noise)
+    dummy.stream.set_observational_uncertainty(weddell_stream_noise)
+    dummy.gps.interp_uncertainty = weddell_interp_noise
     obs_holder = ObsHolder(dummy)
-    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
-
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=weddell_position_process,process_vel_noise =weddell_velocity_process)
 weddell_list = copy.deepcopy(WeddellAllFloats.list)
 
 DIMESAllFloats.list=[]
-process_position_noise = 15.0
-process_vel_noise = 4.5
-depth_noise = 3750
-stream_noise = 65.0
-gps_noise = .1
-toa_noise = 62.5
 all_floats = DIMESAllFloats()
-for idx,dummy in enumerate(all_floats.list) :
+for idx,dummy in enumerate(all_floats.list):
     print(idx)
-    dummy.toa.set_observational_uncertainty(toa_noise)
-    dummy.stream.set_observational_uncertainty(stream_noise)
-    dummy.depth.set_observational_uncertainty(depth_noise)
+    dummy.toa.set_observational_uncertainty(dimes_toa_noise)
+    dummy.stream.set_observational_uncertainty(dimes_stream_noise)
+    dummy.depth.set_observational_uncertainty(dimes_depth_noise)
     obs_holder = ObsHolder(dummy)
-    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=dimes_position_process,process_vel_noise =dimes_velocity_process)
 dimes_list = copy.deepcopy(DIMESAllFloats.list)
 floatlist = weddell_list+dimes_list
 
@@ -168,7 +153,7 @@ sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 ax = sns.lmplot(x='Date Diff', y="Error",
                 hue="Float Type",line_kws={'lw':6},
-                scatter_kws={'alpha':0.55},
+                scatter_kws={'alpha':0.55},x_ci='sd',
                 data=data_df)
 ax.set(yscale='log')
 ax.set(xscale='log')
@@ -185,7 +170,6 @@ plt.ylim([0.1,data_df.Error.max()+10])
 plt.tight_layout()
 plt.savefig(file_handler.out_file('Figure_12'))
 plt.close()
-
 
 f = plt.figure(figsize=(15,15))
 ax = f.add_subplot(1,1,1)
@@ -217,7 +201,7 @@ sns.set(font_scale=2.2)
 ax = sns.lmplot(
     data = float_df,
     x='TOA Percent',y='Error',hue='Float Type',line_kws={'lw':6},
-                scatter_kws={'alpha':0.55})
+                scatter_kws={'alpha':0.55},x_ci='sd')
 ax.set(yscale='log')
 ax.set(ylabel='Mean TOA Error (s)')
 leg = ax._legend

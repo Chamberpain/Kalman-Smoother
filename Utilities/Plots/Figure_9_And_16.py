@@ -6,6 +6,9 @@ import seaborn as sns
 import pandas as pd
 from GeneralUtilities.Filepath.instance import FilePathHandler
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR as ROOT_DIR
+from matplotlib import ticker
+
+
 
 plot_file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 hue_order = ['XS','S','M','L']
@@ -166,53 +169,43 @@ plt.legend(handles[:4], labels[:4], title="Condition",
           loc="upper center", frameon=False)
 plt.xticks(rotation=15)
 p.set_yscale("log")
-p.set_ylabel('Data Misfit, $T^2=\Vert\Sigma^{-1} j \Vert ^2$')
+p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
 
 plt.subplot(1,2,2)
 dataframe = compile_tuning_dataframe_toa(file_handler.out_file(''))
-holder = dataframe[dataframe['Misfit List']==dataframe['Misfit List'].min()]
-for k,data in holder[['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].iterrows():
-	(pn,vn,dn,sn,interpn) = data
+lambda_vals = np.arange(0,100.01,.1).tolist()
+model_size = []
+misfit_size = []
+for lambda_ in lambda_vals:
+	dataframe['lambda'] = (dataframe['Misfit List']+lambda_*dataframe['Model Size'])
+	holder = dataframe[dataframe['lambda']==dataframe['lambda'].min()]
+	misfit_size.append(holder['Misfit List'].tolist()[0])
+	model_size.append(holder['Model Size'].tolist()[0])
 
-dm = dataframe['Depth Noise']==dn
-sm = dataframe['Stream Noise']==sn
-pm = dataframe['Position Noise']==pn
-vm = dataframe['Velocity Noise']==vn
-im = dataframe['Interp Noise']==interpn
-
-best_mask = dm&sm&pm&im&vm
-for k,data in dataframe[['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].drop_duplicates().iterrows():
-	(pn,vn,dn,sn,interpn) = data
-	mask = (dataframe['Position Noise'] == pn)&(dataframe['Velocity Noise']==vn)&(dataframe['Depth Noise']==dn)&(dataframe['Stream Noise']==sn)&(dataframe['Interp Noise']==interpn)
-	holder = dataframe[mask].sort_values(by=['Toa Noise'])
-	y = holder['Model Size']
-	x = holder['Misfit List']
-	plt.plot(x,y,'k',alpha=0.2)
-for k,data in dataframe[best_mask][['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].drop_duplicates().iterrows():
-	(pn,vn,dn,sn,interpn) = data
-	mask = (dataframe['Position Noise'] == pn)&(dataframe['Velocity Noise']==vn)&(dataframe['Depth Noise']==dn)&(dataframe['Stream Noise']==sn)&(dataframe['Interp Noise']==interpn)
-	holder = dataframe[mask].sort_values(by=['Toa Noise'])
-	y = holder['Model Size']
-	x = holder['Misfit List']
-	plt.plot(x,y,'r',linewidth=7)
-	plt.plot(x,y,'r',marker='o',markersize=12,linewidth=7)
+plt.plot(misfit_size,model_size)
 plt.xscale('log')
-point = (6.320554*10**4,6.123724)
+plt.yscale('log')
+plt.xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+plt.ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
+point = (2642132.48122943,6711141.11876417)
 plt.annotate('Best', point,
-        xytext=(0.37, 0.1), textcoords='axes fraction',
+        xytext=(0.1, 0.1), textcoords='axes fraction',
         arrowprops=dict(facecolor='black', shrink=0.05),
         fontsize=25,
         horizontalalignment='left', verticalalignment='top')
-plt.xlabel('Data Misfit, $T^2=\Vert\Sigma^{-1} j \Vert ^2$ ')
-plt.ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
+mask = (dataframe['Misfit List']<point[0]+2)&(dataframe['Misfit List']>point[0]-2)&(dataframe['Model Size']<point[1]+2)&(dataframe['Model Size']>point[1]-2)
+print(dataframe[mask])
+ax2.set_xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+ax2.set_ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
+
 plt.subplots_adjust(wspace = 0.3)
 plt.savefig(plot_file_handler.out_file('Figure_9'))
 plt.close()
 
 
 file_handler = FilePathHandler(ROOT_DIR,'Tuning/Weddell')
-plt.figure(figsize=(20,14))
-plt.subplot(1,2,1)
+fig = plt.figure(figsize=(20,14))
+ax1 = fig.add_subplot(1,2,1)
 dataframe = compile_tuning_dataframe_other(file_handler.out_file(''))
 
 params = dict(data=dataframe,
@@ -233,46 +226,34 @@ plt.legend(handles[:4], labels[:4], title="Condition",
           loc="upper center", frameon=False)
 plt.xticks(rotation=15)
 p.set_yscale("log")
-p.set_ylabel('Data Misfit, $T^2=\Vert\Sigma^{-1} j \Vert ^2$')
-plt.subplot(1,2,2)
+p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+ax2 = plt.subplot(1,2,2)
+
 dataframe = compile_tuning_dataframe_toa(file_handler.out_file(''))
-# holder = dataframe[dataframe['Misfit List']==dataframe['Misfit List'].min()]
-# for k,data in holder[['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].iterrows():
-# 	(pn,vn,dn,sn,interpn) = data
+data_model_misfit = []
+lambda_vals = np.arange(0,100.01,0.1).tolist()
+model_size = []
+misfit_size = []
+for lambda_ in lambda_vals:
+	dataframe['lambda'] = (dataframe['Misfit List']+lambda_*dataframe['Model Size'])
+	holder = dataframe[dataframe['lambda']==dataframe['lambda'].min()]
+	misfit_size.append(holder['Misfit List'].tolist()[0])
+	model_size.append(holder['Model Size'].tolist()[0])
+ax2.plot(misfit_size,model_size)
+ax2.set_xscale('log')
+ax2.set_yscale('log')
+plt.setp(ax2.get_xticklabels(), rotation=0, horizontalalignment='right')
 
-dm = dataframe['Depth Noise']==22500.0
-sm = dataframe['Stream Noise']==900.0
-pm = dataframe['Position Noise']==20.25
-vm = dataframe['Velocity Noise']==0.5625
-im = dataframe['Interp Noise']==14400.0
-
-best_mask = dm&sm&pm&im&vm
-for k,data in dataframe[['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].drop_duplicates().iterrows():
-	(pn,vn,dn,sn,interpn) = data
-	mask = (dataframe['Position Noise'] == pn)&(dataframe['Velocity Noise']==vn)&(dataframe['Depth Noise']==dn)&(dataframe['Stream Noise']==sn)&(dataframe['Interp Noise']==interpn)
-	holder = dataframe[mask].sort_values(by=['Toa Noise'])
-	y = holder['Model Size']
-	x = holder['Misfit List']
-	plt.plot(x,y,'k',alpha=0.2)
-for k,data in dataframe[best_mask][['Position Noise','Velocity Noise','Depth Noise','Stream Noise','Interp Noise']].drop_duplicates().iterrows():
-	(pn,vn,dn,sn,interpn) = data
-	mask = (dataframe['Position Noise'] == pn)&(dataframe['Velocity Noise']==vn)&(dataframe['Depth Noise']==dn)&(dataframe['Stream Noise']==sn)&(dataframe['Interp Noise']==interpn)
-	holder = dataframe[mask].sort_values(by=['Toa Noise'])
-	y = holder['Model Size']
-	x = holder['Misfit List']
-	plt.plot(x,y,'r',linewidth=7)
-	plt.plot(x,y,'r',marker='o',markersize=12,linewidth=7)
-
-plt.xscale('log')
-plt.yscale('log')
-point = (6258.602989,6.508343)
-plt.annotate('Best', point,
-        xytext=(0.37, 0.1), textcoords='axes fraction',
+ax2.set_xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+ax2.set_ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
+point = (507483.69017917,107943.78915633)
+ax2.annotate('Best', point,
+        xytext=(0.8, 0.8), textcoords='axes fraction',
         arrowprops=dict(facecolor='black', shrink=0.05),
         fontsize=25,
         horizontalalignment='left', verticalalignment='top')
-plt.xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
-plt.ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
-plt.subplots_adjust(wspace = 0.25)
+mask = (dataframe['Misfit List']<point[0]+2)&(dataframe['Misfit List']>point[0]-2)&(dataframe['Model Size']<point[1]+2)&(dataframe['Model Size']>point[1]-2)
+print(dataframe[mask])
+plt.subplots_adjust(wspace = 0.4)
 plt.savefig(plot_file_handler.out_file('Figure_16'))
 plt.close()

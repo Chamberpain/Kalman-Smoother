@@ -14,30 +14,22 @@ from KalmanSmoother.Utilities.Floats import DIMESAllFloats,WeddellAllFloats
 from geopy.distance import GreatCircleDistance
 from KalmanSmoother.Utilities.Utilities import speed_calc
 from KalmanSmoother.Utilities.Filters import Smoother,ObsHolder
+from KalmanSmoother.Utilities.DataLibrary import dimes_position_process,dimes_velocity_process,dimes_depth_noise,dimes_stream_noise,dimes_toa_noise,dimes_interp_noise
+from KalmanSmoother.Utilities.DataLibrary import weddell_position_process,weddell_velocity_process,weddell_depth_noise,weddell_stream_noise,weddell_toa_noise,weddell_interp_noise
 
 file_handler = FilePathHandler(ROOT_DIR_PLOT,'FinalFloatsPlot')
-
-
 matplotlib.rcParams.update({'font.size': 22})
 
 WeddellAllFloats.list = []
-process_position_noise = 9.0
-process_vel_noise = 3.0
-interp_noise = 360.0
-depth_noise = 2250
-stream_noise = 32.5
-gps_noise = .1
-toa_noise = 37.5
-
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)
-    dummy.toa.set_observational_uncertainty(toa_noise)
-    dummy.depth.set_observational_uncertainty(depth_noise)
-    dummy.stream.set_observational_uncertainty(stream_noise)
-    dummy.gps.interp_uncertainty = interp_noise
+    dummy.toa.set_observational_uncertainty(weddell_toa_noise)
+    dummy.depth.set_observational_uncertainty(weddell_depth_noise)
+    dummy.stream.set_observational_uncertainty(weddell_stream_noise)
+    dummy.gps.interp_uncertainty = weddell_interp_noise
     obs_holder = ObsHolder(dummy)
-    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=weddell_position_process,process_vel_noise =weddell_velocity_process)
 
 smooth_toa_error = []
 smooth_speed = []
@@ -69,20 +61,14 @@ plt.savefig(file_handler.out_file('Figure_17'))
 
 
 del all_floats
-process_position_noise = 9.0
-process_vel_noise = 4.5
-depth_noise = 2250
-stream_noise = 32.5
-gps_noise = .1
-toa_noise = 37.5
 all_floats = DIMESAllFloats()
 for idx,dummy in enumerate(all_floats.list):
     print(idx)
-    dummy.toa.set_observational_uncertainty(toa_noise)
-    dummy.stream.set_observational_uncertainty(stream_noise)
-    dummy.depth.set_observational_uncertainty(depth_noise)
+    dummy.toa.set_observational_uncertainty(dimes_toa_noise)
+    dummy.stream.set_observational_uncertainty(dimes_stream_noise)
+    dummy.depth.set_observational_uncertainty(dimes_depth_noise)
     obs_holder = ObsHolder(dummy)
-    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=process_position_noise,process_vel_noise =process_vel_noise)
+    smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=dimes_position_process,process_vel_noise =dimes_velocity_process)
 trj_dist_error = []
 trj_toa_error = []
 trj_speed = []
@@ -127,8 +113,9 @@ plt.subplot(3,1,3)
 bins = np.linspace(0,41,30)
 plt.hist(smooth_speed,bins=bins,color='g',label='Kalman',alpha=0.3)
 plt.hist(trj_speed,bins=bins,color='b',label='DIMES',alpha=0.3)
+plt.yscale('log')
 plt.annotate('c', xy = (0.8,0.7),xycoords='axes fraction',zorder=10,size=32,bbox=dict(boxstyle="round", fc="0.8"),)     
-plt.xlim([0,20])
+plt.xlim([0,35])
 # plt.yscale('log')
 plt.xlabel('Speed (km $day^{-1}$)', fontsize=22)
 plt.subplots_adjust(hspace=0.3)

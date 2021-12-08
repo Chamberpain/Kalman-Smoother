@@ -1,7 +1,19 @@
 import datetime
 
 #This is probably a silly way of doing this, but it gets the job done...
+dimes_position_process = 20.25
+dimes_velocity_process = 0.5625
+dimes_depth_noise = 202500.0
+dimes_stream_noise = 25.0
+dimes_toa_noise = 4.0
+dimes_interp_noise = 0.0
 
+weddell_position_process = 20.25
+weddell_velocity_process = 0.5625
+weddell_depth_noise = 5625.0
+weddell_stream_noise = 900.0
+weddell_toa_noise = 16.0
+weddell_interp_noise = 14400.0
 
 float_library = {'5295':'5901731','5299':'5901733', '5300':'5901734', '5301':'5901735', 
 '5302':'5901736', '5303':'5901737', '5304':'5901738', '5305':'5901739', '5306':'5901740', 
