@@ -170,6 +170,7 @@ plt.legend(handles[:4], labels[:4], title="Condition",
 plt.xticks(rotation=15)
 p.set_yscale("log")
 p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+plt.annotate('a',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
 
 plt.subplot(1,2,2)
 dataframe = compile_tuning_dataframe_toa(file_handler.out_file(''))
@@ -195,8 +196,7 @@ plt.annotate('Best', point,
         horizontalalignment='left', verticalalignment='top')
 mask = (dataframe['Misfit List']<point[0]+2)&(dataframe['Misfit List']>point[0]-2)&(dataframe['Model Size']<point[1]+2)&(dataframe['Model Size']>point[1]-2)
 print(dataframe[mask])
-ax2.set_xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
-ax2.set_ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
+plt.annotate('b',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
 
 plt.subplots_adjust(wspace = 0.3)
 plt.savefig(plot_file_handler.out_file('Figure_9'))
@@ -227,6 +227,8 @@ plt.legend(handles[:4], labels[:4], title="Condition",
 plt.xticks(rotation=15)
 p.set_yscale("log")
 p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
+plt.annotate('a',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
+
 ax2 = plt.subplot(1,2,2)
 
 dataframe = compile_tuning_dataframe_toa(file_handler.out_file(''))
@@ -252,6 +254,7 @@ ax2.annotate('Best', point,
         arrowprops=dict(facecolor='black', shrink=0.05),
         fontsize=25,
         horizontalalignment='left', verticalalignment='top')
+plt.annotate('b',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
 mask = (dataframe['Misfit List']<point[0]+2)&(dataframe['Misfit List']>point[0]-2)&(dataframe['Model Size']<point[1]+2)&(dataframe['Model Size']>point[1]-2)
 print(dataframe[mask])
 plt.subplots_adjust(wspace = 0.4)

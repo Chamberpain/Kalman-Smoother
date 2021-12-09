@@ -92,7 +92,7 @@ for dummy in all_floats.list:
 float_list = [x.floatname for x in all_floats.list]
 fig = plt.figure(figsize=(12,12))
 axs = [fig.add_subplot(2,2,x,projection=ccrs.PlateCarree()) for x in [1,2,3,4]]
-for holder in zip(axs,[853,854,802,808],['a','b','c','d']):
+for holder in zip(axs,[808,853,854,802],['a','b','c','d']):
 	print(holder)
 	ax,name,label = holder
 	float_idx = float_list.index(name)

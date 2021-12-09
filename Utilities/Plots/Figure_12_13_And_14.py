@@ -11,6 +11,7 @@ import datetime
 from geopy.distance import GreatCircleDistance
 from KalmanSmoother.Utilities.DataLibrary import dimes_position_process,dimes_velocity_process,dimes_depth_noise,dimes_stream_noise,dimes_toa_noise,dimes_interp_noise
 from KalmanSmoother.Utilities.DataLibrary import weddell_position_process,weddell_velocity_process,weddell_depth_noise,weddell_stream_noise,weddell_toa_noise,weddell_interp_noise
+from sklearn.linear_model import LinearRegression
 
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 
@@ -73,9 +74,11 @@ def obs_date_diff_list(dummy):
     date_diff_list = []
     toa_error_list = []
     toa_number_list = []
+    trj_error_list = []
     pos_date = sorted(np.unique(dummy.pos_date))
     for date in dates[1:]:
         try:
+
             idx = pos_date.index(date)
             dummy.pos[idx]
             dummy.clock.set_date(date)
@@ -96,11 +99,17 @@ def obs_date_diff_list(dummy):
                 dist_toa = source.toa_from_dist(dist)
                 holder.append(abs(detrend_toa-dist_toa))
             toa_error_list.append(np.mean(holder))
+            if x.type=='DIMES':
+                pos = x.pos[x.pos_date.index(date)]
+                trj_pos = x.trj_pos[x.trj_date.index(date)]
+                trj_error = GreatCircleDistance(pos,trj_pos)
+                trj_error_list.append(trj_error.km)
+
         except ValueError:
             continue
         except IndexError:
             continue
-    return (date_diff_list,toa_error_list,toa_number_list)
+    return (date_diff_list,toa_error_list,toa_number_list,trj_error_list)
 
 WeddellAllFloats.list = []
 all_floats = WeddellAllFloats()
@@ -124,6 +133,17 @@ for idx,dummy in enumerate(all_floats.list):
     obs_holder = ObsHolder(dummy)
     smooth =Smoother(dummy,all_floats.sources,obs_holder,process_position_noise=dimes_position_process,process_vel_noise =dimes_velocity_process)
 dimes_list = copy.deepcopy(DIMESAllFloats.list)
+print_df_list = []
+for x in dimes_list:
+        date_diff_list,toa_error_list,toa_number_list,trj_error_list = obs_date_diff_list(x)
+        print_df_list.append(pd.DataFrame({'date_diff':date_diff_list,'toa_number_list':toa_number_list,'trj_error_list':trj_error_list}))
+print_df = pd.concat(print_df_list)
+linear_regressor = LinearRegression()
+linear_regressor.fit(print_df['date_diff'].values.reshape(-1, 1), print_df['trj_error_list'].values.reshape(-1, 1))
+print('DIMES trajectory error increases at ',linear_regressor.coef_,' per day without positioning')
+linear_regressor.fit(print_df['toa_number_list'].values.reshape(-1, 1), print_df['trj_error_list'].values.reshape(-1, 1))
+print('DIMES trajectory error increases at ',linear_regressor.coef_,' per addition sound source heard')
+
 floatlist = weddell_list+dimes_list
 
 data_df_list = []
@@ -131,7 +151,9 @@ float_df_list = []
 for x in floatlist:
     try:
         toa_percent = x.percent_obs()
-        date_diff_list,toa_error_list,toa_number_list = obs_date_diff_list(x)
+        date_diff_list,toa_error_list,toa_number_list,trj_error_list = obs_date_diff_list(x)
+        dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list = dummy.toa.calculate_error_list(dummy.trj_pos,dummy.trj_date)
+
         toa_number_list = np.array(toa_number_list)
         toa_number_list[toa_number_list>3]=3
         mean_error = np.mean(toa_error_list)
@@ -153,7 +175,7 @@ sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 ax = sns.lmplot(x='Date Diff', y="Error",
                 hue="Float Type",line_kws={'lw':6},
-                scatter_kws={'alpha':0.55},x_ci='sd',
+                scatter_kws={'alpha':0.55},x_ci=None,ci=None,
                 data=data_df)
 ax.set(yscale='log')
 ax.set(xscale='log')
@@ -171,7 +193,39 @@ plt.tight_layout()
 plt.savefig(file_handler.out_file('Figure_12'))
 plt.close()
 
+
+
+sns.set_theme(style="whitegrid")
+sns.set(font_scale=2.2)
+ax = sns.lmplot(
+    data = float_df,
+    x='TOA Percent',y='Error',hue='Float Type',line_kws={'lw':6},
+                scatter_kws={'alpha':0.55},x_ci=None,ci=None)
+ax.set(yscale='log')
+ax.set(ylabel='Mean TOA Error (s)')
+leg = ax._legend
+leg.set_bbox_to_anchor([0.85,0.9])
+for lh in leg.legendHandles: 
+    lh.set_alpha(1)
+    lh.set_sizes([500])
+plt.ylim([float_df.Error.min(),110])
+ax.fig.set_size_inches(12,12)
+plt.tight_layout()
+plt.savefig(file_handler.out_file('Figure_13'))
+plt.close()
+
+
+
+
+for toa_num in data_df['TOA Number'].unique():
+    for mission in data_df['Float Type'].unique():
+        mask = (data_df['TOA Number']==toa_num)&(data_df['Float Type']==mission)
+        print('Float type is ',mission)
+        print('TOA Number is ',toa_num)
+        print('Error is ',data_df[mask]['Error'].mean())
+        print('std of Error is ',data_df[mask]['Error'].std())
 f = plt.figure(figsize=(15,15))
+
 ax = f.add_subplot(1,1,1)
 sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
@@ -193,24 +247,14 @@ plt.ylim([0.01,data_df.Error.max()+10])
 
 plt.yscale('log')
 plt.tight_layout()
-plt.savefig(file_handler.out_file('Figure_13'))
-plt.close()
-
-sns.set_theme(style="whitegrid")
-sns.set(font_scale=2.2)
-ax = sns.lmplot(
-    data = float_df,
-    x='TOA Percent',y='Error',hue='Float Type',line_kws={'lw':6},
-                scatter_kws={'alpha':0.55},x_ci='sd')
-ax.set(yscale='log')
-ax.set(ylabel='Mean TOA Error (s)')
-leg = ax._legend
-leg.set_bbox_to_anchor([0.85,0.9])
-for lh in leg.legendHandles: 
-    lh.set_alpha(1)
-    lh.set_sizes([500])
-plt.ylim([float_df.Error.min(),110])
-ax.fig.set_size_inches(12,12)
-plt.tight_layout()
 plt.savefig(file_handler.out_file('Figure_14'))
 plt.close()
+
+
+for mission in data_df['Float Type'].unique():
+    for toa_num in data_df['TOA Number'].unique():
+        mask = (data_df['Float Type']==mission)&(data_df['TOA Number']==toa_num)
+        print('the mission is ',mission)
+        print('toa num is ',toa_num)
+        print('mean error is ',data_df[mask].Error.mean())
+        print('std error is ',data_df[mask].Error.std())

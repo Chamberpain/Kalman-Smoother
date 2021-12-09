@@ -9,8 +9,8 @@ from GeneralUtilities.Filepath.instance import FilePathHandler
 import cartopy.crs as ccrs
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 from KalmanSmoother.Utilities.DataLibrary import weddell_position_process,weddell_velocity_process,weddell_depth_noise,weddell_stream_noise,weddell_toa_noise,weddell_interp_noise
-
-
+import matplotlib
+matplotlib.rcParams.update({'font.size': 22})
 WeddellAllFloats.list = []
 all_floats = WeddellAllFloats()
 for idx,dummy in enumerate(all_floats.list):

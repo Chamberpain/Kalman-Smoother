@@ -39,7 +39,14 @@ for idx,dummy in enumerate(all_floats.list):
     smooth_toa_error += toa_error_list
     smooth_speed += speed_calc(dummy.pos,dummy.pos_date)
 smooth_speed = [x for x in smooth_speed]
-
+print('mean smoother toa misfit was')
+print(np.mean(smooth_toa_error))
+print('smoother std was')
+print(np.std(smooth_toa_error))
+print('median smooth speed is')
+print(np.median(smooth_speed))
+print('mean smooth speed is')
+print(np.mean(smooth_speed))
 
 fig = plt.figure(figsize=(12,12))
 
@@ -93,6 +100,29 @@ for idx,dummy in enumerate(all_floats.list):
             trj_diff_list.append(GreatCircleDistance(pos,dummy.pos[idx]).km)
         except:
             continue
+
+print('mean ARTOA toa misfit was')
+print(np.mean(trj_toa_error))
+print('ARTOA std was')
+print(np.std(trj_toa_error))
+print('mean smoother toa misfit was')
+print(np.mean(smooth_toa_error))
+print('smoother std was')
+print(np.std(smooth_toa_error))
+print('median trj diff is')
+print(np.median(trj_diff_list))
+print('mean trj diff is')
+print(np.mean(trj_diff_list))
+print('median smooth speed is')
+print(np.median(smooth_speed))
+print('mean smooth speed is')
+print(np.mean(smooth_speed))
+print('median trj speed is')
+print(np.median(trj_speed))
+print('mean trj speed is')
+print(np.mean(trj_speed))
+
+
 plt.figure(figsize=(13,13))
 plt.subplot(3,1,1)
 bins = np.linspace(-30,30,200)
