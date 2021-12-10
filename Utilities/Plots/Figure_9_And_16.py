@@ -167,6 +167,7 @@ handles, labels = p_box.get_legend_handles_labels()
 plt.legend(handles[:4], labels[:4], title="Condition",
           handletextpad=0.5, columnspacing=1,ncol=7,bbox_to_anchor=(0.5, 1.15),
           loc="upper center", frameon=False)
+plt.yticks([7*10**5,10**6,3*10**6])
 plt.xticks(rotation=15)
 p.set_yscale("log")
 p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
@@ -186,6 +187,8 @@ for lambda_ in lambda_vals:
 plt.plot(misfit_size,model_size)
 plt.xscale('log')
 plt.yscale('log')
+plt.yticks([min(model_size)-10000,max(model_size)+10000]+[7*10**6,3*10**7],labels = ['']*2+['7x$10^6$','3x$10^7$'])
+
 plt.xlabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
 plt.ylabel('Model Norm, $\sum_{i=0}^n[x^s(t_i)-x^f(t_i)]^TP^{-1}_0[x^s(t_i)-x^f(t_i)]$')
 point = (2642132.48122943,6711141.11876417)
@@ -198,7 +201,7 @@ mask = (dataframe['Misfit List']<point[0]+2)&(dataframe['Misfit List']>point[0]-
 print(dataframe[mask])
 plt.annotate('b',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
 
-plt.subplots_adjust(wspace = 0.3)
+plt.subplots_adjust(wspace = 0.35)
 plt.savefig(plot_file_handler.out_file('Figure_9'))
 plt.close()
 
@@ -226,6 +229,7 @@ plt.legend(handles[:4], labels[:4], title="Condition",
           loc="upper center", frameon=False)
 plt.xticks(rotation=15)
 p.set_yscale("log")
+plt.yticks([dataframe['Misfit'].min()-1000,dataframe['Misfit'].max()+1000]+[9*10**5,2*10**6],labels = ['']*2+['7x$10^5$','3x$10^6$'])
 p.set_ylabel('Data Misfit, $\sum_{i=0}^n (\epsilon^s_i)^TR^{-1}_i\epsilon^s_i$')
 plt.annotate('a',xy = (0.8,0.9),xycoords='axes fraction',zorder=10,size=28,bbox=dict(boxstyle="round", fc="0.8"),)
 
@@ -242,6 +246,7 @@ for lambda_ in lambda_vals:
 	misfit_size.append(holder['Misfit List'].tolist()[0])
 	model_size.append(holder['Model Size'].tolist()[0])
 ax2.plot(misfit_size,model_size)
+
 ax2.set_xscale('log')
 ax2.set_yscale('log')
 plt.setp(ax2.get_xticklabels(), rotation=0, horizontalalignment='right')

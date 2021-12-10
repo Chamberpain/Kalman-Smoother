@@ -3,7 +3,7 @@ import seaborn as sns
 import matplotlib.gridspec as gridspec
 import pandas as pd
 import matplotlib.pyplot as plt
-from Projects.KalmanSmoother.__init__ import ROOT_DIR
+from KalmanSmoother.__init__ import ROOT_DIR
 base_dir = ROOT_DIR+'/Data/output/'
 from GeneralUtilities.Filepath.instance import FilePathHandler
 from KalmanSmoother.Utilities.__init__ import ROOT_DIR as ROOT_DIR_PLOT
@@ -113,6 +113,8 @@ for holder in zip(axs,[808,853,854,802],['a','b','c','d']):
 	ks = ax.scatter(lons,lats,c = toa_num,label='Kalman',alpha=0.6,cmap=kalman_cm,norm=kalman_norm)
 	art = ax.scatter(trj_lons,trj_lats,c=toa_num[:len(trj_lons)],label='ARTOA',alpha=0.6,cmap=artoa_cm,norm=artoa_norm)
 	ax.annotate(label,xy = (0.1,0.8),xycoords='axes fraction',zorder=10,size=20,bbox=dict(boxstyle="round", fc="0.8"),)
+	ax.annotate(name,xy = (0.3,0.8),xycoords='axes fraction',zorder=10,size=20,)
+
 plt.subplots_adjust(wspace=0.3)
 plt.subplots_adjust(top=0.85)
 

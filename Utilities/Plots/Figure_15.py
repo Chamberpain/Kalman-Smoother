@@ -39,26 +39,46 @@ for k,dummy in enumerate(all_floats.list):
 	lat_holder,lon_holder = list(zip(*[(x.latitude,x.longitude) for x in dummy.pos]))
 	lat += lat_holder
 	lon += lon_holder
-	first_lat_list.append(lat[0])
-	first_lon_list.append(lon[0])
-	last_lat_list.append(lat[-1])
-	last_lon_list.append(lon[-1])
+	first_lat_list.append(lat_holder[0])
+	first_lon_list.append(lon_holder[0])
+	last_lat_list.append(lat_holder[-1])
+	last_lon_list.append(lon_holder[-1])
 fig = plt.figure(figsize=(15,15))
-ax = fig.add_subplot(1,1,1,projection=ccrs.PlateCarree())
-lon_grid,lat_grid,ax = WeddellSeaCartopy(ax=ax).get_map()
-norm=colors.LogNorm(vmin=10, vmax=max(uncert_list))
-cm = plt.cm.get_cmap('copper')
-sc = ax.scatter(lon,lat,s=5,c=uncert_list,alpha=0.8,norm=norm,cmap=cm)
-plt.colorbar(sc,label='Uncertainty (km)',location='bottom')
-
+ax1 = fig.add_subplot(2,1,1,projection=ccrs.PlateCarree())
+lon_grid,lat_grid,ax1 = WeddellSeaCartopy(ax=ax1).get_map()
+for dummy in all_floats.list:
+	gps_list = dummy.gps.obs
+	lats,lons = zip(*[(gps.latitude,gps.longitude) for gps in gps_list])
+	ax1.plot(lons,lats,'g-*')
 lat_list = []
 lon_list = []
 for _,source in smooth.sources.array.items():
 	if source.mission=='Weddell':
 		lat_list.append(source.position.latitude)
 		lon_list.append(source.position.longitude)
-ax.scatter(first_lon_list,first_lat_list,s=50,c='m',marker='^')
-ax.scatter(last_lon_list,last_lat_list,s=50,c='m',marker='s')
-ax.scatter(lon_list,lat_list,s=50,c='r')
+ax1.scatter(first_lon_list,first_lat_list,s=50,c='b',marker='^')
+ax1.scatter(last_lon_list,last_lat_list,s=50,c='m',marker='s')
+ax1.scatter(lon_list,lat_list,s=50,c='r')
+ax1.annotate('a',xy = (0.1,0.8),xycoords='axes fraction',zorder=10,size=20,bbox=dict(boxstyle="round", fc="0.8"),)
+
+
+ax2 = fig.add_subplot(2,1,2,projection=ccrs.PlateCarree())
+lon_grid,lat_grid,ax2 = WeddellSeaCartopy(ax=ax2).get_map()
+norm=colors.LogNorm(vmin=10, vmax=max(uncert_list))
+cm = plt.cm.get_cmap('copper')
+sc = ax2.scatter(lon,lat,s=5,c=uncert_list,alpha=0.8,norm=norm,cmap=cm)
+PCM = ax2.get_children()[0]
+fig.colorbar(PCM,ax=[ax1,ax2],pad=.05,label='Uncertainty (km)',location='bottom')
+lat_list = []
+lon_list = []
+for _,source in smooth.sources.array.items():
+	if source.mission=='Weddell':
+		lat_list.append(source.position.latitude)
+		lon_list.append(source.position.longitude)
+ax2.scatter(first_lon_list,first_lat_list,s=50,c='b',marker='^')
+ax2.scatter(last_lon_list,last_lat_list,s=50,c='m',marker='s')
+ax2.scatter(lon_list,lat_list,s=50,c='r')
+ax2.annotate('b',xy = (0.1,0.8),xycoords='axes fraction',zorder=10,size=20,bbox=dict(boxstyle="round", fc="0.8"),)
+
 plt.savefig(file_handler.out_file('Figure_15'))
 plt.close()
