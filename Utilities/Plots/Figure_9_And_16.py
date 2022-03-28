@@ -93,7 +93,7 @@ def compile_tuning_dataframe_other(error_folder):
 	misfit_list = np.array(misfit_list)*np.array(misfit_list)*8
 	for token_name,token in [('TOA Noise',toa_list),
 	('Position Noise',process_position_list),('Velocity Noise',process_vel_list)
-	,('Depth Noise',depth_list),('Stream Noise',stream_list)]:
+	,('$f \ H^{-1}$ Noise',depth_list),('Geostrophic Noise',stream_list)]:
 		dataframe = pd.DataFrame({'Error Type':token_name,'Condition':token,'Misfit':misfit_list,'Model Size':model_size_list})
 		dataframe_list.append(dataframe)
 	dataframe = pd.concat(dataframe_list)
@@ -146,7 +146,7 @@ def compile_tuning_dataframe_toa(error_folder):
 
 file_handler = FilePathHandler(ROOT_DIR,'Tuning/Dimes')
 
-plt.figure(figsize=(18,14))
+plt.figure(figsize=(18,15))
 plt.subplot(1,2,1)
 dataframe = compile_tuning_dataframe_other(file_handler.out_file(''))
 
@@ -207,7 +207,7 @@ plt.close()
 
 
 file_handler = FilePathHandler(ROOT_DIR,'Tuning/Weddell')
-fig = plt.figure(figsize=(20,14))
+fig = plt.figure(figsize=(20,15))
 ax1 = fig.add_subplot(1,2,1)
 dataframe = compile_tuning_dataframe_other(file_handler.out_file(''))
 

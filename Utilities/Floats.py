@@ -2,7 +2,7 @@ import os
 import datetime
 import numpy as np
 from KalmanSmoother.Utilities.Observations import Clock,GPS,Depth,Stream,TOA,SourceArray
-from KalmanSmoother.Utilities.Utilities import KalmanPoint
+from KalmanSmoother.Utilities.Utilities import KalmanPoint,dx_dy_distance
 import pandas as pd
 import geopy
 from GeneralUtilities.Filepath.search import find_files
@@ -253,6 +253,19 @@ class AllFloats(object):
 	def reset_floats(cls):
 		cls.list = []
 
+	@classmethod
+	def matlab_save(cls):
+		for x in cls.list:
+			lats,lons = zip(*[(dummy.latitude,dummy.longitude) for dummy in x.pos])
+			dates = [dummy.strftime("%d-%b-%Y %H:%M:%S") for dummy in x.pos_date]
+			dy,dx = zip(*[dx_dy_distance(x.pos[dummy],x.pos[dummy+1]) for dummy in range(len(x.pos)-1)])
+			U = np.array(dx)/24
+			V = np.array(dy)/24
+			mdict = {'Float ID':x.floatname,'Principal Investigator(s)':'Riser/Speer','Float Type':'Argo','Latitude':np.array(lats),'Longitude':np.array(lons),'Date':np.array(dates),'U':U,'V':V}
+			filename = str(x.floatname)
+			scipy.io.savemat(filename,mdict)
+
+
 	def reset_state(self):
 		for float_ in self.list:
 			float_.X_m = []
@@ -282,7 +295,6 @@ class AllFloats(object):
 			base.gps.obs = [x for _,x in sorted(list(zip(base.gps.date,base.gps.obs)), key=lambda x: x[0])]
 			base.toa.date = sorted(base.toa.date)
 			base.gps.date = sorted(base.gps.date)
-
 			new_list.append(base)
 		self.list = new_list
 

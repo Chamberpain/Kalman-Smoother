@@ -106,8 +106,10 @@ def obs_date_diff_list(dummy):
                 trj_error_list.append(trj_error.km)
 
         except ValueError:
+            print('I have encountered a value error')
             continue
         except IndexError:
+            print('I have encountered an index error')
             continue
     return (date_diff_list,toa_error_list,toa_number_list,trj_error_list)
 
@@ -149,10 +151,11 @@ floatlist = weddell_list+dimes_list
 data_df_list = []
 float_df_list = []
 for x in floatlist:
+    print(x)
     try:
         toa_percent = x.percent_obs()
         date_diff_list,toa_error_list,toa_number_list,trj_error_list = obs_date_diff_list(x)
-        dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list = dummy.toa.calculate_error_list(dummy.trj_pos,dummy.trj_date)
+        # dist_error_list,toa_error_list,dist_list,soso_list,date_return_list,obs_list = x.toa.calculate_error_list(x.trj_pos,x.trj_date)
 
         toa_number_list = np.array(toa_number_list)
         toa_number_list[toa_number_list>3]=3
@@ -211,7 +214,7 @@ for lh in leg.legendHandles:
 plt.ylim([float_df.Error.min(),110])
 ax.fig.set_size_inches(12,12)
 plt.tight_layout()
-plt.savefig(file_handler.out_file('Figure_14'))
+plt.savefig(file_handler.out_file('Figure_12'))
 plt.close()
 
 
@@ -222,8 +225,8 @@ for toa_num in data_df['TOA Number'].unique():
         mask = (data_df['TOA Number']==toa_num)&(data_df['Float Type']==mission)
         print('Float type is ',mission)
         print('TOA Number is ',toa_num)
-        print('Error is ',data_df[mask]['Error'].mean())
-        print('std of Error is ',data_df[mask]['Error'].std())
+        print('10th percentile Error is ',np.percentile(data_df[mask]['Error'].tolist(),20))
+        print('90th percentile Error is ',np.percentile(data_df[mask]['Error'].tolist(),80))
 f = plt.figure(figsize=(15,15))
 
 ax = f.add_subplot(1,1,1)
@@ -235,7 +238,7 @@ sns.stripplot(x="TOA Number", y="Error",
 sns.pointplot(x="TOA Number", y="Error", hue='Float Type',
               data=data_df, dodge=.8 - .8 / 3,
               join=False, palette="dark",
-              markers="d", scale=2, ci=None)
+              markers="d", scale=3, ci=None)
 handles, labels = ax.get_legend_handles_labels()
 ax.legend(handles[2:], labels[2:], title="Type",
           handletextpad=0, columnspacing=1,
@@ -247,7 +250,7 @@ plt.ylim([0.01,data_df.Error.max()+10])
 
 plt.yscale('log')
 plt.tight_layout()
-plt.savefig(file_handler.out_file('Figure_12'))
+plt.savefig(file_handler.out_file('Figure_14'))
 plt.close()
 
 

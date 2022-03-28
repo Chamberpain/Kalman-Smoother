@@ -6,7 +6,7 @@ from KalmanSmoother.Utilities.__init__ import ROOT_DIR
 from GeneralUtilities.Filepath.instance import FilePathHandler
 import pandas as pd
 import seaborn as sns
-
+import matplotlib.patheffects as pe
 file_handler = FilePathHandler(ROOT_DIR,'FinalFloatsPlot')
 x_label_dict = {'GPS Number':'GPS Number (Observations)','TOA Error':'TOA Error (Seconds)','TOA Number':'TOA Number (Sources)'}
 
@@ -83,12 +83,12 @@ plt.tight_layout()
 plt.savefig(file_handler.out_file('Figure_6'))
 plt.close()
 
-
+outline=pe.withStroke(linewidth=12, foreground='black')
 sns.set_theme(style="whitegrid")
 sns.set(font_scale=2.2)
 ax = sns.lmplot(x="TOA Uncertainty", y="Pos Error",
-                hue="Type",col="SNR",line_kws={'lw':10},
-                scatter_kws={'alpha':0.07},col_order=['High','Med','Low'],hue_order=['Least Squares','Kalman','Smoother']
+                hue="Type",col="SNR",line_kws={'lw':10,'path_effects':[outline]},
+                scatter_kws={'alpha':0.9,'s':8.5},col_order=['High','Med','Low'],hue_order=['Least Squares','Kalman','Smoother']
                 ,data=dataframe,facet_kws=dict(legend_out=False)).set_titles('')
 ax.set(yscale='log')
 ax.set(ylim=(0.1, 100))
